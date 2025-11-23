@@ -29,4 +29,3 @@ dependencies:
 - typeguard =4.4.2
 - r-castor >=1.7.2
 - scipy >=1.2.1
-- sepp =4.5.5
