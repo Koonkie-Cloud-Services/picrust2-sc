@@ -14,7 +14,7 @@ import biom
 import tempfile
 import gzip
 import sys
-from ete3 import Tree
+from ete4 import Tree
 
 
 def read_fasta(filename, cut_header=False):
