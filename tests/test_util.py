@@ -188,6 +188,28 @@ class util_test(unittest.TestCase):
         self.assertRaises(SystemExit, three_df_index_overlap_sort, test1,
                           test2, test_no_overlap)
 
+    def test_prune_tree(self):
+        '''Test that a tree is pruned correctly to only contain tips in a
+        provided list.'''
+        from picrust2.util import prune_tree
+        from ete4 import Tree
+
+        # Create test tree.
+        test_tree = Tree("((A:0.1,B:0.2,C:0.3):0.4,(D:0.5,E:0.6):0.7);")
+        with TemporaryDirectory() as temp_dir:
+            in_tree_file = path.join(temp_dir, "tree_in.nwk")
+            out_tree_file = path.join(temp_dir, "tree_out.nwk")
+            test_tree.write(outfile=in_tree_file)
+
+            # Prune tree to only contain tips A, C, and E.
+            prune_tree(["A", "C", "E"], in_tree_file, out_tree_file)
+            # Get expected newick string.
+            exp_newick = "((A:0.1,C:0.3):0.4,E:0.6);"
+
+            pruned_tree = Tree(open(out_tree_file))
+            self.assertEqual(pruned_tree.write(), exp_newick)
+        return
+
 
 class add_description_tests(unittest.TestCase):
 

@@ -514,14 +514,14 @@ def check_empty_traits(filepaths):
         sys.exit("\n\nStopping - these input files were empty or all counts sum to 0: " + ", ".join(empty_files))
         
         
-def prune_tree(names, tree_file, save_name):
+def prune_tree(names: list, tree_file: str, save_name: str):
     '''Read in tree file and prune it to only the names given. Save it as save_name.'''
     
-    tree = Tree(tree_file, format=1, quoted_node_names=True)
+    tree = Tree(open(tree_file))
     
     tree.prune(names)
     
-    tree.write(outfile=save_name, format=1)
+    tree.write(outfile=save_name)
     
     return
 
@@ -529,7 +529,7 @@ def prune_tree(names, tree_file, save_name):
 def get_tree_nodes(tree_file):
     '''Read in tree file and return the names of the nodes within it.'''
   
-    tree = Tree(tree_file, format=1, quoted_node_names=True)
+    tree = Tree(open(tree_file))
     
     names = []
     
