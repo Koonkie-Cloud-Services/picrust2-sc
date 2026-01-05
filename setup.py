@@ -32,5 +32,12 @@ setup(name='PICRUSt2',
                      'default_files/prokaryotic/*',
                      'default_files/prokaryotic/pro_ref/*',
                      'default_files/pathway_mapfiles/*',
-                     'default_files/description_mapfiles/*']},
+                     'default_files/description_mapfiles/*',
+                     'default_files/archaea/*',
+                     'default_files/archaea/arc_ref/*',
+                     'default_files/bacteria/*',
+                     'default_files/bacteria/bac_ref/*',
+                     'default_files/fungi/*',
+                     'default_files/fungi/fungi_ITS/*'
+                     ]},
       long_description=long_description)
