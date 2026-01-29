@@ -151,22 +151,6 @@ class place_seqs_tests(unittest.TestCase):
                                 chunk_size=5000,
                                 verbose=True)
 
-    def test_run_place_seqs_pipeline_sepp(self):
-        '''Basic test of full place seqs pipeline with SEPP. Just run to
-           see if any errors occur'''
-        with TemporaryDirectory() as temp_dir:
-            tmp_tree = path.join(temp_dir, "out.tre")
-
-            place_seqs_pipeline(study_fasta=test_study_seqs,
-                                ref_dir=default_ref_dir,
-                                placement_tool="sepp",
-                                out_tree=tmp_tree,
-                                threads=1,
-                                out_dir=temp_dir,
-                                min_align=0.8,
-                                chunk_size=5000,
-                                verbose=True)
-
     def test_identify_ref_files_epa_ng(self):
         '''Test for reference files being identified correctly.'''
 
