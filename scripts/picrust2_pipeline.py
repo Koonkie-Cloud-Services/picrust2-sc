@@ -2,7 +2,6 @@
 
 import argparse
 from importlib.metadata import version
-import sys
 import time
 from picrust2.default import (
     default_ref_dir_bac,
@@ -14,6 +13,7 @@ from picrust2.default import (
 )
 from picrust2.util import restricted_float
 from picrust2.pipeline import full_pipeline_split
+from picrust2 import logger
 
 HSP_METHODS = ["mp", "emp_prob", "pic", "scp", "subtree_average"]
 
@@ -403,6 +403,21 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--debug",
+    default=False,
+    action="store_true",
+    help="Enable debug logging (most verbose).",
+)
+
+parser.add_argument(
+    "--log_file",
+    metavar="PATH",
+    type=str,
+    default="",
+    help="Path to log file for detailed logging.",
+)
+
+parser.add_argument(
     "-v",
     "--version",
     default=False,
@@ -417,48 +432,62 @@ def main():
 
     args = parser.parse_args()
 
-    func_outfiles, pathway_outfiles = full_pipeline_split(
-        study_fasta=args.study_fasta,
-        input_table=args.input,
-        output_folder=args.output,
-        processes=args.processes,
-        placement_tool=args.placement_tool,
-        ref_dir1=args.ref_dir1,
-        ref_dir2=args.ref_dir2,
-        in_traits=args.in_traits,
-        custom_trait_tables_ref1=args.custom_trait_tables_ref1,
-        custom_trait_tables_ref2=args.custom_trait_tables_ref2,
-        marker_gene_table_ref1=args.marker_gene_table_ref1,
-        marker_gene_table_ref2=args.marker_gene_table_ref2,
-        pathway_map=args.pathway_map,
-        rxn_func=args.reaction_func,
-        no_pathways=args.no_pathways,
-        regroup_map=args.regroup_map,
-        skip_minpath=args.skip_minpath,
-        no_regroup=args.no_regroup,
-        coverage=args.coverage,
-        stratified=args.stratified,
-        max_nsti=args.max_nsti,
-        min_reads=args.min_reads,
-        min_samples=args.min_samples,
-        hsp_method=args.hsp_method,
-        edge_exponent=args.edge_exponent,
-        min_align=args.min_align,
-        no_gap_fill=args.no_gap_fill,
-        per_sequence_contrib=args.per_sequence_contrib,
-        wide_table=args.wide_table,
-        skip_norm=args.skip_norm,
-        remove_intermediate=args.remove_intermediate,
-        verbose=args.verbose,
+    # Set up logging based on command-line arguments
+    log_file_path = logger.get_log_file_path(
+        output_dir=args.output, log_filename=args.log_file
+    )
+    log = logger.setup_logging(
+        verbose=args.verbose, debug=args.debug, log_file=log_file_path
     )
 
-    if args.verbose:
-        elapsed_time = time.time() - start_time
-        print(
-            "Completed PICRUSt2 pipeline in " + "%.2f" % elapsed_time + " seconds.",
-            file=sys.stderr,
+    log.info("Starting PICRUSt2 pipeline")
+    log.debug(f"Command line arguments: {vars(args)}")
+
+    try:
+        func_outfiles, pathway_outfiles = full_pipeline_split(
+            study_fasta=args.study_fasta,
+            input_table=args.input,
+            output_folder=args.output,
+            processes=args.processes,
+            placement_tool=args.placement_tool,
+            ref_dir1=args.ref_dir1,
+            ref_dir2=args.ref_dir2,
+            in_traits=args.in_traits,
+            custom_trait_tables_ref1=args.custom_trait_tables_ref1,
+            custom_trait_tables_ref2=args.custom_trait_tables_ref2,
+            marker_gene_table_ref1=args.marker_gene_table_ref1,
+            marker_gene_table_ref2=args.marker_gene_table_ref2,
+            pathway_map=args.pathway_map,
+            rxn_func=args.reaction_func,
+            no_pathways=args.no_pathways,
+            regroup_map=args.regroup_map,
+            skip_minpath=args.skip_minpath,
+            no_regroup=args.no_regroup,
+            coverage=args.coverage,
+            stratified=args.stratified,
+            max_nsti=args.max_nsti,
+            min_reads=args.min_reads,
+            min_samples=args.min_samples,
+            hsp_method=args.hsp_method,
+            edge_exponent=args.edge_exponent,
+            min_align=args.min_align,
+            no_gap_fill=args.no_gap_fill,
+            per_sequence_contrib=args.per_sequence_contrib,
+            wide_table=args.wide_table,
+            skip_norm=args.skip_norm,
+            remove_intermediate=args.remove_intermediate,
+            verbose=args.verbose,
+        )
+    except Exception as e:
+        logger.log_and_raise(
+            log,
+            f"An error occurred during pipeline execution: {e}",
         )
 
+    elapsed_time = time.time() - start_time
+    log.info(
+        "Completed PICRUSt2 pipeline in " + "%.2f" % elapsed_time + " seconds."
+    )
 
 if __name__ == "__main__":
     main()

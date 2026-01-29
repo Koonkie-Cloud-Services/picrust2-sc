@@ -324,13 +324,29 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
 
 
 def make_output_dir(dirpath: str, strict: bool = False) -> str:
-    """Make an output directory if it doesn't exist
-
-    Returns the path to the directory
-    dirpath -- a string describing the path to the directory
-    strict -- if True, raise an exception if dir already
-    exists
     """
+    Create an output directory at the specified path.
+    This function creates a directory at the given path, handling cases where
+    the directory already exists and providing informative error messages for
+    permission or other filesystem issues.
+    Args:
+        dirpath (str): The path where the directory should be created.
+        strict (bool, optional): If True, raises an error if the directory 
+            already exists. If False, returns the existing directory path 
+            without error. Defaults to False.
+    Returns:
+        str: The absolute path of the created or existing directory.
+    Raises:
+        IOError: If strict=True and the directory already exists, or if 
+            directory creation fails due to permissions or other filesystem 
+            issues.
+    Example:
+        >>> make_output_dir("/path/to/new/dir")
+        '/path/to/new/dir'
+        >>> make_output_dir("/existing/dir", strict=True)
+        IOError: Directory '/existing/dir' already exists
+    """
+    
     dirpath = abspath(dirpath)
 
     # Check if directory already exists

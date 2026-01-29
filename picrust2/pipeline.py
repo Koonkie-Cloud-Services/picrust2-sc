@@ -21,6 +21,10 @@ from picrust2.util import (
     check_empty_traits,
 )
 from picrust2.split_domains import get_lowest_nsti, combine_domain_predictions
+from picrust2.logger import get_picrust_logger, log_and_raise
+
+# Get logger for this module
+logger = get_picrust_logger(__name__)
 
 
 def full_pipeline_split(
@@ -65,12 +69,11 @@ def full_pipeline_split(
 
     # Throw warning if --per_sequence_contrib set but --stratified unset.
     if per_sequence_contrib and not stratified:
-        print(
+        logger.info(
             "\nThe option --per_sequence_contrib was set, but not the option "
             "--stratified. This means that a stratified pathway table will "
             "be output only (i.e. a stratified metagenome table will NOT "
-            "be output).\n",
-            file=sys.stderr,
+            "be output).\n"
         )
 
     if ref_dir1 == default_ref_dir_bac:
@@ -88,14 +91,16 @@ def full_pipeline_split(
 
     # Exit if only one set of custom trait tables has been gives
     if custom_trait_tables_ref1 is None and not custom_trait_tables_ref2 is None:
-        sys.exit(
+        log_and_raise(
+            logger,
             "You've set some custom trait tables for reference set 1 but not "
-            "for reference set 2. Please set both of them."
+            "for reference set 2. Please set both of them.",
         )
     elif not custom_trait_tables_ref1 is None and custom_trait_tables_ref2 is None:
-        sys.exit(
+        log_and_raise(
+            logger,
             "You've set some custom trait tables for reference set 2 but not "
-            "for reference set 1. Please set both of them."
+            "for reference set 1. Please set both of them.",
         )
 
     if custom_trait_tables_ref1 is None:
@@ -105,11 +110,9 @@ def full_pipeline_split(
         funcs = in_traits.split(",")
         for func in funcs:
             if func not in FUNC_TRAIT_OPTIONS:
-                sys.exit(
-                    "Error - specified category "
-                    + func
-                    + " is not "
-                    + "one of the default categories."
+                log_and_raise(
+                    logger,
+                    f"Specified category {func} is not one of the default categories."
                 )
 
         funcs_ref1 = funcs
@@ -191,12 +194,11 @@ def full_pipeline_split(
         # Throw warning if default pathway mapfile used with non-default
         # reference files.
         if pathway_map == default_pathway_map and ref_dir1 != default_ref_dir_bac:
-            print(
+            logger.info(
                 "Warning - non-default reference files specified with "
                 "default pathway mapfile of prokaryote-specific MetaCyc "
                 "pathways (--pathway_map option). This usage may be "
                 "unintended.",
-                file=sys.stderr,
             )
 
         if not no_regroup:
@@ -216,16 +218,19 @@ def full_pipeline_split(
     # Check that there are no duplicated sequence names in the FASTA.
     check_duplicated_seqnames(study_fasta, verbose)
 
-    if path.exists(output_folder):
-        sys.exit(
-            "Stopping since output directory " + output_folder + " already exists."
+    # Check for existing outputs from previous run
+    if check_existing_output(output_folder):
+        log_and_raise(
+            logger,
+            f"Stopping since output directory {output_folder} appears to contain "
+            f"outputs from a previous PICRUSt2 run. Please use a different output "
+            f"directory or remove existing files.",
         )
 
     # Make output folder.
     make_output_dir(output_folder)
 
-    if verbose:
-        print("Placing sequences onto reference tree", file=sys.stderr)
+    logger.info("Placing sequences onto reference tree")
 
     # Define folders for intermediate files (unless --remove_intermediate set).
     if remove_intermediate:
@@ -295,12 +300,10 @@ def full_pipeline_split(
         print_stderr=True,
     )
 
-    if verbose:
-        print(
-            "Finished placing sequences on output tree for reference 1: "
-            + out_tree_ref1,
-            file=sys.stderr,
-        )
+    logger.info(
+        "Finished placing sequences on output tree for reference 1: "
+        + out_tree_ref1,
+    )
 
     system_call_check(
         place_seqs_cmd_ref2,
@@ -309,13 +312,10 @@ def full_pipeline_split(
         print_stderr=True,
     )
 
-    if verbose:
-        print(
-            "Finished placing sequences on output tree for reference 2: "
-            + out_tree_ref2,
-            file=sys.stderr,
-        )
-
+    logger.info(
+        "Finished placing sequences on output tree for reference 2: "
+        + out_tree_ref2,
+    )
     # Get predictions for all specified functions and keep track of outfiles.
     predicted_funcs_split = {}
 
@@ -363,15 +363,13 @@ def full_pipeline_split(
             hsp_cmd, print_command=verbose, print_stdout=verbose, print_stderr=True
         )
 
-    if verbose:
-        print(
-            "Finished getting marker and NSTI predictions for both domains: "
-            + predicted_funcs_split[name_ref1 + "_marker"]
-            + ", "
-            + predicted_funcs_split[name_ref2 + "_marker"]
-            + "\nNow finding the best one for each sequence.",
-            file=sys.stderr,
-        )
+    logger.info(
+        "Finished getting marker and NSTI predictions for both domains: "
+        + predicted_funcs_split[name_ref1 + "_marker"]
+        + ", "
+        + predicted_funcs_split[name_ref2 + "_marker"]
+        + "\nNow finding the best one for each sequence.",
+    )
 
     # Choose which of the reference sets is best for each sequence
     nsti_lowest_df, nsti_dom1_df, nsti_dom2_df = get_lowest_nsti(
@@ -404,14 +402,12 @@ def full_pipeline_split(
 
     # Check whether we still have both domains present still
     if nsti_dom1_df.shape[0] == 0:
-        if verbose:
-            print(
-                "Don't have any "
-                + name_ref1
-                + " in the study sequences. Continuing with only "
-                + name_ref2,
-                file=sys.stderr,
-            )
+        logger.info(
+            "Don't have any "
+            + name_ref1
+            + " in the study sequences. Continuing with only "
+            + name_ref2,
+        )
 
         # Update the predicted_funcs_split dictionary
         predicted_funcs_split[name_ref1 + "_marker"] = ""
@@ -419,14 +415,13 @@ def full_pipeline_split(
             output_folder, name_ref2 + "_reduced_marker_predicted_and_nsti.tsv.gz"
         )
     elif nsti_dom2_df.shape[0] == 0:
-        if verbose:
-            print(
-                "Don't have any "
-                + name_ref2
-                + " in the study sequences. Continuing with only "
-                + name_ref1,
+        logger.info(
+            "Don't have any "
+            + name_ref2
+            + " in the study sequences. Continuing with only "
+            + name_ref1,
                 file=sys.stderr,
-            )
+        )
 
         # Update the predicted_funcs_split dictionary
         predicted_funcs_split[name_ref1 + "_marker"] = path.join(
@@ -456,13 +451,11 @@ def full_pipeline_split(
         list(nsti_dom2_df.index.values) + ref_d2_seqs, out_tree_ref2, out_tree_ref2_red
     )
 
-    if verbose:
-        print(
-            "Finished getting the best domain match for each sequence: "
-            + path.join(output_folder, "combined_marker_predicted_and_nsti.tsv.gz")
-            + " Now running hsp.py for the reduced reference sets.",
-            file=sys.stderr,
-        )
+    logger.info(
+        "Finished getting the best domain match for each sequence: "
+        + path.join(output_folder, "combined_marker_predicted_and_nsti.tsv.gz")
+        + " Now running hsp.py for the reduced reference sets."
+    )
 
     # Run hsp.py for each function database for each of the reference sets
     reference_sets = [
@@ -511,10 +504,9 @@ def full_pipeline_split(
                 hsp_cmd, print_command=verbose, print_stdout=verbose, print_stderr=True
             )
 
-    if verbose:
-        print(
-            "Finished getting functional predictions for all traits.", file=sys.stderr
-        )
+    logger.info(
+        "Finished getting functional predictions for all traits."
+    )
 
     # Get a list of the predictions to be joined together and join them for each domain
     # Note that this checks the names so that it is compatible with custom trait ables
@@ -540,22 +532,22 @@ def full_pipeline_split(
 
         if len(combining) == 1:
             predicted_funcs[func] = predicted_funcs_split[combining[0]]
-            print(
+            logger.info(
                 "Warning: There was only one file for the function: " + func + "\n"
                 "Maybe that's fine if you used custom traits or there were no sequences "
                 "matching one of the domains.",
-                file=sys.stderr,
             )
 
         elif len(combining) > 2:
-            sys.exit(
+            log_and_raise(
+                logger,
                 "More than two files were available for the function: " + func + "\n"
                 "If you are using your own custom trait files, please check that you "
-                "have not given the same table more than once for a domain."
+                "have not given the same table more than once for a domain.",
             )
 
         else:
-            print(combining, predicted_funcs_split)
+            logger.info(combining, predicted_funcs_split)
             out_file = path.join(
                 output_folder, "combined_" + func + "_predicted.tsv.gz"
             )
@@ -567,11 +559,9 @@ def full_pipeline_split(
             )
             predicted_funcs[func] = out_file
 
-    if verbose:
-        print(
-            "Finished joining together all trait tables with the same trait name for both domains.",
-            file=sys.stderr,
-        )
+    logger.info(
+        "Finished joining together all trait tables with the same trait name for both domains."
+    )
 
     predicted_funcs["marker"] = path.join(
         output_folder, "combined_marker_predicted_and_nsti.tsv.gz"
@@ -587,8 +577,7 @@ def full_pipeline_split(
         if func == "marker":
             continue
 
-        if verbose:
-            print("Running metagenome pipeline for " + func, file=sys.stderr)
+        logger.info("Running metagenome pipeline for " + func)
 
         func_output_dir = path.join(output_folder, func + "_metagenome_out")
 
@@ -651,8 +640,7 @@ def full_pipeline_split(
 
         path_output_dir = path.join(output_folder, "pathways_out")
 
-        if verbose:
-            print("Inferring pathways from predicted " + rxn_func)
+        logger.info("Inferring pathways from predicted " + rxn_func)
 
         # Determine whether stratified or unstratified table should be input.
         if not stratified or per_sequence_contrib:
@@ -718,12 +706,9 @@ def full_pipeline_split(
             print_stderr=True,
         )
 
-        if verbose:
-            print(
-                "Wrote predicted pathway abundances and coverages to "
-                + path_output_dir,
-                file=sys.stderr,
-            )
+        logger.info(
+            f"Wrote predicted pathway abundances and coverages to {path_output_dir}"
+        )
 
         # Keep track of output filenames if this function is being used in
         # a non-default way (e.g. with a QIIME2 plugin).
@@ -777,30 +762,27 @@ def check_overlapping_seqs(in_seq, in_tab, verbose):
     num_ASV_overlap = len(table_ASVs.intersection(FASTA_ASVs))
 
     if "taxonomy" in in_table.columns:
-        print(
+        logger.info(
             'Warning - column named "taxonomy" in abundance table - if '
             "this corresponds to taxonomic labels this should be removed "
-            "before running this pipeline.",
-            file=sys.stderr,
+            "before running this pipeline."
         )
 
     # Throw error if 0 ASVs overlap between the two files.
     if num_ASV_overlap == 0:
-        sys.exit(
+        log_and_raise(
+            logger,
             "Stopping - no ASV ids overlap between input FASTA and "
-            "sequence abundance table"
+            "sequence abundance table",
         )
 
     # Otherwise print to STDERR how many ASVs overlap between the two files
     # if verbose set.
-    if verbose:
-        print(
-            str(num_ASV_overlap)
-            + " of "
-            + str(len(table_ASVs))
-            + " sequence ids overlap between input table and FASTA.\n",
-            file=sys.stderr,
+    logger.info(
+        "{} of {} sequence ids overlap between input table and FASTA.\n".format(
+            num_ASV_overlap, len(table_ASVs)
         )
+    )
 
 
 def check_duplicated_seqnames(in_seq, verbose):
@@ -815,15 +797,45 @@ def check_duplicated_seqnames(in_seq, verbose):
     duplicated_ids = [i for i in unique_ids if FASTA_ASVs.count(i) > 1]
 
     if len(FASTA_ASVs) != len(set(FASTA_ASVs)):
-        sys.exit(
+        log_and_raise(
+            logger,
             "Stopping - there are duplicated ASV ids in the input FASTA.\n"
             + "These are the duplicated IDs: "
-            + ", ".join(duplicated_ids)
+            + ", ".join(duplicated_ids),
         )
 
-    if verbose:
-        print(
-            str(len(FASTA_ASVs))
-            + " ASVs in the input FASTA. None of the sequence ids are duplicated.\n",
-            file=sys.stderr,
+    logger.info(
+        "{} ASVs in the input FASTA. None of the sequence ids are duplicated.\n".format(
+            len(FASTA_ASVs)
         )
+    )
+
+def check_existing_output(output_folder: str) -> bool:
+    """Check if output folder contains outputs from a previous PICRUSt2 run.
+    Returns True if existing outputs are detected, False otherwise."""
+    
+    if not path.exists(output_folder):
+        return False
+    
+    # Key output files that indicate a previous run
+    key_outputs = [
+        "combined_marker_predicted_and_nsti.tsv.gz",
+        "bac.tre",
+        "arc.tre", 
+        "ref1.tre",
+        "ref2.tre",
+        "intermediate",
+        "pathways_out"
+    ]
+    
+    existing_outputs = []
+    for output_file in key_outputs:
+        output_path = path.join(output_folder, output_file)
+        if path.exists(output_path):
+            existing_outputs.append(output_file)
+    
+    # If multiple key outputs exist, likely a previous run
+    if len(existing_outputs) >= 2:
+        return True
+    
+    return False

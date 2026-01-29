@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-import sys
 import pandas as pd
-import numpy as np
 from os import path
 from picrust2.util import (
     read_seqabun,
@@ -10,6 +8,10 @@ from picrust2.util import (
     check_files_exist,
     three_df_index_overlap_sort,
 )
+from picrust2.logger import get_picrust_logger, log_and_raise
+
+# Get logger for this module
+logger = get_picrust_logger(__name__)
 
 
 def run_metagenome_pipeline(
@@ -29,14 +31,16 @@ def run_metagenome_pipeline(
     straitifed and unstratified by contributing genomes (i.e. taxa)."""
 
     if not marker and not skip_norm:
-        sys.exit(
+        log_and_raise(
+            logger,
             "Table of predicted marker gene copy numbers is required "
-            "unless --skip_norm is specified."
+            "unless --skip_norm is specified.",
         )
     elif marker and skip_norm:
-        sys.exit(
+        log_and_raise(
+            logger,
             "Table of predicted marker gene copy numbers should not be "
-            "specified when --skip_norm option is set."
+            "specified when --skip_norm option is set.",
         )
 
     make_output_dir(out_dir)
@@ -88,7 +92,7 @@ def run_metagenome_pipeline(
         ).sort_values()
 
         if len(label_overlap) == 0:
-            sys.exit("No sequence ids overlap between both input files.")
+            log_and_raise(logger, "No sequence ids overlap between both input files.")
 
         pred_function = pred_function.reindex(label_overlap)
         study_seq_counts = study_seq_counts.reindex(label_overlap)
@@ -215,26 +219,26 @@ def drop_tips_by_nsti(tab, nsti_col, max_nsti):
     filt_num_rows = tab.shape[0]
 
     if orig_num_rows == filt_num_rows:
-        print(
-            "All ASVs were below the max NSTI cut-off of "
-            + str(max_nsti)
-            + " and so all were retained for downstream analyses.",
-            file=sys.stderr,
+        logger.info(
+            "All ASVs were below the max NSTI cut-off of {} and so all were retained for downstream analyses.".format(
+                max_nsti
+            )
         )
 
     elif filt_num_rows == 0:
-        sys.exit(
-            "Stopping - all ASVs filtered from table when max NSTI "
-            "cut-off of " + str(max_nsti) + " used."
+        log_and_raise(
+            logger,
+            "Stopping - all ASVs filtered from table when max NSTI cut-off of {} used.".format(
+                max_nsti
+            ),
         )
 
     else:
         num_removed = orig_num_rows - filt_num_rows
-        print(
-            str(num_removed) + " of " + str(orig_num_rows) + " ASVs were "
-            "above the max NSTI cut-off of " + str(max_nsti) + " and were "
-            "removed from the downstream analyses.",
-            file=sys.stderr,
+        logger.info(
+            "{} of {} ASVs were above the max NSTI cut-off of {} and were removed from the downstream analyses.".format(
+                num_removed, orig_num_rows, max_nsti
+            )
         )
 
     # Keep track of NSTI column as separate dataframe and remove this column
@@ -305,9 +309,10 @@ def id_rare_seqs(in_counts, min_reads, min_samples):
 
     # Check if "RARE" is the name of a sequence in this table.
     if "RARE" in in_counts.index:
-        sys.exit(
+        log_and_raise(
+            logger,
             'Stopping: the sequence called "RARE" in the sequence '
-            + "abundance table should be re-named."
+            + "abundance table should be re-named.",
         )
 
     low_freq_seq = set(in_counts[in_counts.sum(axis=1) < min_reads].index)
@@ -428,8 +433,9 @@ def metagenome_contributions(func_abun, sample_abun, rare_seqs=[], skip_abun=Fal
 
             # Make sure there are no NaN values in final column.
             if func_abun_subset_melt["norm_taxon_function_contrib"].isna().sum() > 0:
-                sys.exit(
-                    "Error - NaN values are present in the norm_taxon_function_contrib column, which indicates that the calculation failed."
+                log_and_raise(
+                    logger,
+                    "Error - NaN values are present in the norm_taxon_function_contrib column, which indicates that the calculation failed.",
                 )
 
         if s_i == 0:
