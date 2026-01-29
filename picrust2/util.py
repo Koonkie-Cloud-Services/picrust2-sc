@@ -14,10 +14,11 @@ import biom
 import tempfile
 import gzip
 import sys
+from typing import Dict, List, Optional, Union, Tuple
 from ete4 import Tree
 
 
-def read_fasta(filename, cut_header=False):
+def read_fasta(filename: str, cut_header: bool = False) -> Dict[str, str]:
     """Read in FASTA file (gzipped or not) and return dictionary with each
     independent sequence id as a key and the corresponding sequence string as
     the value."""
@@ -68,7 +69,7 @@ def read_fasta(filename, cut_header=False):
     return seq
 
 
-def read_fasta_ids(filename, cut_header=False):
+def read_fasta_ids(filename: str, cut_header: bool = False) -> List[str]:
     """Read in FASTA file (gzipped or not) and return dictionary with each
     independent sequence id as a key and the corresponding sequence string as
     the value."""
@@ -108,7 +109,7 @@ def read_fasta_ids(filename, cut_header=False):
     return seq_ids
 
 
-def write_fasta(seq, outfile):
+def write_fasta(seq: Dict[str, str], outfile: str) -> None:
     out_fasta = open(outfile, "w")
 
     # Look through sequence ids (sorted alphabetically so output file is
@@ -120,7 +121,7 @@ def write_fasta(seq, outfile):
     out_fasta.close()
 
 
-def read_phylip(filename, check_input=True):
+def read_phylip(filename: str, check_input: bool = True) -> Dict[str, str]:
     """Reads in Phylip formatted multiple-sequence alignment and stores in
     dictionary with each key as a sequence name and each value as the sequence.
     If check_input=True then will check whether the number and length of each
@@ -175,7 +176,7 @@ def read_phylip(filename, check_input=True):
     return seq
 
 
-def write_phylip(seq, outfile):
+def write_phylip(seq: Dict[str, str], outfile: str) -> None:
     """Will write a dictionary containing id, sequence pairs in Phylip
     format. Originally written to run PaPaRa."""
 
@@ -211,7 +212,7 @@ def write_phylip(seq, outfile):
     out_phylip.close()
 
 
-def read_stockholm(filename, clean_char=True):
+def read_stockholm(filename: str, clean_char: bool = True) -> Dict[str, str]:
     """Reads in Stockholm formatted multiple sequence alignment and returns
     dictionary with ids as keys and full concatenated sequences as values. When
     clean_char=True this function will convert all characters to uppercase and
@@ -261,7 +262,7 @@ def read_stockholm(filename, clean_char=True):
     return seq
 
 
-def system_call_check(cmd, print_command=False, print_stdout=False, print_stderr=False):
+def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, print_stdout: bool = False, print_stderr: bool = False) -> int:
     """Run system command and throw and error if return is not 0. Input command
     can be a list containing the command or a string."""
 
@@ -322,7 +323,7 @@ def system_call_check(cmd, print_command=False, print_stdout=False, print_stderr
     return return_value
 
 
-def make_output_dir(dirpath, strict=False):
+def make_output_dir(dirpath: str, strict: bool = False) -> str:
     """Make an output directory if it doesn't exist
 
     Returns the path to the directory
@@ -351,17 +352,17 @@ def make_output_dir(dirpath, strict=False):
     return dirpath
 
 
-def make_output_dir_for_file(filepath):
+def make_output_dir_for_file(filepath: str) -> None:
     """Create sub-directories for a new file if they don't already exist"""
     dirpath = dirname(filepath)
     if not isdir(dirpath) and not dirpath == "":
         makedirs(dirpath)
 
 
-def generate_temp_filename(temp_dir=None, prefix="", suffix=""):
+def generate_temp_filename(temp_dir: Optional[str] = None, prefix: str = "", suffix: str = "") -> str:
     """Function to generate path to temporary filenames (does not create the)
     files). The input arguments can be used to customize the temporary
-    filename. If no temporary directory is specified then the default temprary
+    filename. If no temporary directory is specified then the default temporary
     directory will be used."""
 
     # If temp_dir not set then get default directory.
@@ -371,7 +372,7 @@ def generate_temp_filename(temp_dir=None, prefix="", suffix=""):
     return join(temp_dir, prefix + next(tempfile._get_candidate_names()) + suffix)
 
 
-def read_seqabun(infile):
+def read_seqabun(infile: str) -> pd.DataFrame:
     """Will read in sequence abundance table in either TSV, BIOM, or mothur
     shared format."""
 
@@ -480,7 +481,7 @@ def read_seqabun(infile):
         return input_seqabun
 
 
-def three_df_index_overlap_sort(df1, df2, df3):
+def three_df_index_overlap_sort(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Given 3 pandas dataframes, will first determine which index labels
     overlap across all dataframes and will subset the labels to this set and
     then will sort the dataframes to be in the same order"""
@@ -509,7 +510,7 @@ def three_df_index_overlap_sort(df1, df2, df3):
     return (df1, df2, df3)
 
 
-def check_files_exist(filepaths):
+def check_files_exist(filepaths: List[str]) -> None:
     """Takes in a list of filepaths and checks whether they exist. Will
     throw error describing which files do not exist if applicable."""
 
@@ -534,7 +535,7 @@ def check_files_exist(filepaths):
         )
 
 
-def check_empty_traits(filepaths):
+def check_empty_traits(filepaths: List[str]) -> None:
     """Takes in a list of trait files and checks whether they are empty. Will
     throw error describing which trait files are empty if applicable."""
 
@@ -581,7 +582,7 @@ def prune_tree(names: list, tree_file: str, save_name: str):
     return
 
 
-def get_tree_nodes(tree_file):
+def get_tree_nodes(tree_file: str) -> List[str]:
     """Read in tree file and return the names of the nodes within it."""
 
     tree = Tree(open(tree_file))
@@ -594,7 +595,7 @@ def get_tree_nodes(tree_file):
     return names
 
 
-def add_descrip_col(inputfile, mapfile, in_df=False):
+def add_descrip_col(inputfile: Union[str, pd.DataFrame], mapfile: str, in_df: bool = False) -> pd.DataFrame:
     """Takes paths to input table and mapfile of function ids to descriptions.
     Will read both of these files in as pandas dataframes and will add
     descriptions as a separate column in a new pandas dataframe, which will be
@@ -642,7 +643,7 @@ def add_descrip_col(inputfile, mapfile, in_df=False):
     return function_tab
 
 
-def convert_humann2_to_picrust2(infiles, outfile, stratified):
+def convert_humann2_to_picrust2(infiles: List[str], outfile: str, stratified: bool) -> None:
     """Reads in HUMAnN2 gene tables and will convert them to PICRUSt2
     format."""
 
@@ -720,7 +721,7 @@ def convert_humann2_to_picrust2(infiles, outfile, stratified):
         humann2_combined.to_csv(path_or_buf=outfile, sep="\t", index=False)
 
 
-def convert_picrust2_to_humann2(infiles, outfolder, stratified):
+def convert_picrust2_to_humann2(infiles: List[str], outfolder: str, stratified: bool) -> None:
     """Reads in a PICRUSt2 table(s) and splits each sample into different
     file as compatible with HUMAnN2."""
 
@@ -857,7 +858,7 @@ def convert_picrust2_to_humann2(infiles, outfolder, stratified):
         tab_subset.to_csv(path_or_buf=outfile, sep="\t", index_label=first_col)
 
 
-def convert_picrust2_to_humann2_merged(infiles, outfile):
+def convert_picrust2_to_humann2_merged(infiles: List[str], outfile: str) -> None:
     """Reads in a PICRUSt2 table(s), combines them, and outputs in HUMAnN2
     tabular format."""
 
@@ -928,7 +929,7 @@ def convert_picrust2_to_humann2_merged(infiles, outfile):
     new_tab.to_csv(path_or_buf=outfile, sep="\t", index_label=first_col)
 
 
-def contrib_to_legacy(infiles, outfile, use_rel_abun=True):
+def contrib_to_legacy(infiles: List[str], outfile: str, use_rel_abun: bool = True) -> None:
     """Certain tools require the contributional file columns to match those
     output by PICRUSt1. This function will convert a dataframe to have these
     column names (and remove unused columns). Importantly, the relative
@@ -1027,7 +1028,7 @@ def contrib_to_legacy(infiles, outfile, use_rel_abun=True):
     contrib_df.to_csv(path_or_buf=outfile, sep="\t", index=False, compression="gzip")
 
 
-def restricted_float(in_arg):
+def restricted_float(in_arg: str) -> float:
     """Custom argparse type to force an input float to be between 0 and 1."""
     try:
         in_arg = float(in_arg)
@@ -1053,7 +1054,7 @@ class TemporaryDirectory(object):
     NOTE: This function was taken and modified from the tempfile package to
     first change permissions on folder to be deleted."""
 
-    def __init__(self, suffix=None, prefix=None, dir=None):
+    def __init__(self, suffix: Optional[str] = None, prefix: Optional[str] = None, dir: Optional[str] = None) -> None:
         self.name = tempfile.mkdtemp(suffix, prefix, dir)
         self._finalizer = _weakref.finalize(
             self,
@@ -1076,7 +1077,7 @@ class TemporaryDirectory(object):
     def __exit__(self, exc, value, tb):
         self.cleanup()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         if self._finalizer.detach():
 
             # Line added by Gavin Douglas to change permissions to 777 before
@@ -1086,7 +1087,7 @@ class TemporaryDirectory(object):
             _shutil.rmtree(self.name)
 
 
-def shuffle_predictions(input, outdir, rep, seed=None):
+def shuffle_predictions(input: str, outdir: str, rep: int, seed: Optional[int] = None) -> None:
     """Function to shuffle sequence ids across a prediction table for a
     specified number of replicates."""
 
