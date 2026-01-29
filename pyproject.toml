@@ -1,3 +1,57 @@
 [build-system]
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "PICRUSt2"
+version = "2.6.5"
+description = "PICRUSt: Phylogenetic Investigation of Communities by Reconstruction of Unobserved States"
+readme = "README.md"
+license = {text = "GPL"}
+maintainers = [
+    {name = "Langille Lab"}
+]
+urls = {Homepage = "https://github.com/picrust/picrust2/wiki"}
+dependencies = [
+    "numpy",
+    "h5py", 
+    "joblib",
+    "biom-format"
+]
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+include = ["picrust2*"]
+
+[tool.setuptools]
+script-files = [
+    "scripts/add_descriptions.py",
+    "scripts/add_descriptions_oldIMG.py", 
+    "scripts/combine_domains.py",
+    "scripts/convert_table.py",
+    "scripts/count_hmm_hits.py",
+    "scripts/hsp.py",
+    "scripts/metagenome_pipeline.py",
+    "scripts/pathway_pipeline.py",
+    "scripts/pick_best_domain.py",
+    "scripts/picrust2_pipeline.py",
+    "scripts/picrust2_pipeline_singleRef.py",
+    "scripts/place_seqs.py",
+    "scripts/shuffle_predictions.py"
+]
+
+[tool.setuptools.package-data]
+picrust2 = [
+    "MinPath/MinPath12hmp.py",
+    "Rscripts/*R",
+    "default_files/prokaryotic/*",
+    "default_files/prokaryotic/pro_ref/*",
+    "default_files/pathway_mapfiles/*",
+    "default_files/description_mapfiles/*",
+    "default_files/archaea/*",
+    "default_files/archaea/arc_ref/*",
+    "default_files/bacteria/*",
+    "default_files/bacteria/bac_ref/*",
+    "default_files/fungi/*",
+    "default_files/fungi/fungi_ITS/*"
+]
