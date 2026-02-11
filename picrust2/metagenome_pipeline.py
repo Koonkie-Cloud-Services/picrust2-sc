@@ -323,7 +323,7 @@ def id_rare_seqs(in_counts, min_reads, min_samples):
     return list(low_freq_seq.union(few_samples_seq))
 
 
-def metagenome_contributions(func_abun, sample_abun, rare_seqs=[], skip_abun=False):
+def metagenome_contributions(func_abun: pd.DataFrame, sample_abun: pd.DataFrame, rare_seqs=[], skip_abun=False) -> pd.DataFrame:
     """Take in function table and study sequence abundance table. Returns
     long-form table of how each sequence contributes functions in each
     sample. Note that the old format of columns (such as calling the sequences
@@ -338,6 +338,7 @@ def metagenome_contributions(func_abun, sample_abun, rare_seqs=[], skip_abun=Fal
     # Counter used to identify the first sample.
     s_i = 0
 
+    func_abun_index_name = func_abun.index.name if func_abun.index.name else "sequence"
     for sample in sample_abun.columns:
 
         single_abun = sample_abun[sample]
@@ -347,19 +348,30 @@ def metagenome_contributions(func_abun, sample_abun, rare_seqs=[], skip_abun=Fal
         single_relabun = single_relabun.iloc[single_relabun.to_numpy().nonzero()]
 
         intersecting_taxa = single_abun.index.intersection(func_abun.index)
-        func_abun_subset = func_abun.loc[intersecting_taxa]
+        if len(intersecting_taxa) == 0:
+            log_and_raise(
+                logger,
+                f"No sequence ids overlap between function table and abundance table for sample {sample}.",
+            )
+        func_abun_subset = func_abun.loc[intersecting_taxa]  # type: pd.DataFrame
         single_abun = single_abun.loc[intersecting_taxa]
         single_relabun = single_relabun.loc[intersecting_taxa]
 
-        # Melt function table to be long format.
-        func_abun_subset["taxon"] = func_abun_subset.index.to_list()
-
-        func_abun_subset_melt = pd.melt(
-            func_abun_subset,
-            id_vars="taxon",
-            value_name="genome_function_count",
-            var_name="function",
-        )
+        # Melt function table to long format, preserving index as taxon
+        try:
+            func_abun_subset_melt = pd.melt(
+                func_abun_subset.reset_index(names=func_abun_index_name),
+                id_vars=func_abun_index_name,
+                value_name="genome_function_count",
+                var_name="function",
+            ).rename(columns={func_abun_index_name: "taxon"})
+        except KeyError as e:
+            log_and_raise(
+                logger,
+                f"KeyError during melting function table: {e}" +
+                f"\nThis likely indicates that the function table is not in the expected format. Please check that the function table has a column named 'sequence' that contains the sequence IDs and that the other columns correspond to functions." +
+                f"\nThe input table: {func_abun_subset.head()}",
+            )
 
         # Remove rows where gene count is 0.
         func_abun_subset_melt = func_abun_subset_melt[
@@ -435,7 +447,7 @@ def metagenome_contributions(func_abun, sample_abun, rare_seqs=[], skip_abun=Fal
             if func_abun_subset_melt["norm_taxon_function_contrib"].isna().sum() > 0:
                 log_and_raise(
                     logger,
-                    "Error - NaN values are present in the norm_taxon_function_contrib column, which indicates that the calculation failed.",
+                    "NaN values are present in the norm_taxon_function_contrib column, which indicates that the calculation failed.",
                 )
 
         if s_i == 0:

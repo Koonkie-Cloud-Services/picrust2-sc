@@ -17,6 +17,7 @@ import sys
 from typing import Dict, List, Optional, Union, Tuple
 from ete4 import Tree
 
+from picrust2.logger import get_picrust_logger
 
 def read_fasta(filename: str, cut_header: bool = False) -> Dict[str, str]:
     """Read in FASTA file (gzipped or not) and return dictionary with each
@@ -266,6 +267,7 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
     """Run system command and throw and error if return is not 0. Input command
     can be a list containing the command or a string."""
 
+    logger = get_picrust_logger(__name__)
     # Convert command to list if input as string.
     if type(cmd) is str:
         cmd = cmd.split()
@@ -297,28 +299,26 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
 
         # Exit with error if command did not finish successfully.
         if return_value != 0:
-            print("\nError running this command:\n" + " ".join(cmd), file=sys.stderr)
+            logger.error("\nError running this command:\n" + " ".join(cmd))
 
             if stdout_log:
-                print(
+                logger.error(
                     "\nStandard output of the above failed command:\n" + stdout_log,
-                    file=sys.stderr,
                 )
 
             if stderr_log:
-                print(
+                logger.error(
                     "\nStandard error of the above failed command:\n" + stderr_log,
-                    file=sys.stderr,
                 )
 
             sys.exit(1)
 
         # Print stdout and stderr if specified.
         if print_stdout:
-            print(stdout_log)
+            logger.info(stdout_log)
 
         if print_stderr:
-            print(stderr_log, file=sys.stderr)
+            logger.info(stderr_log)
 
     return return_value
 
