@@ -11,6 +11,7 @@ from picrust2.metagenome_pipeline import (
     calc_weighted_nsti,
     id_rare_seqs,
     drop_tips_by_nsti,
+    metagenome_contributions,
 )
 
 # Set paths to test files.
@@ -248,6 +249,35 @@ class metagenome_pipeline_test(unittest.TestCase):
             )
 
         pd.testing.assert_frame_equal(unstrat_out, exp_unstrat_in, check_like=True)
+
+    def test_metagenome_contributions(self):
+        """Test that expected contribution table generated."""
+
+        func_abun = pd.DataFrame(
+            {
+                "function1": [0, 0, 1],
+                "function2": [1, 1, 1],
+                "function3": [1, 1, 1],
+            },
+            index=["seq1", "seq2", "seq3"],
+        )
+        sample_abun = pd.DataFrame(
+            {
+                "sample1": [0, 0, 5],
+                "sample2": [1, 20, 5],
+                "sample3": [5, 5, 5],
+            },
+            index=["seq1", "seq2", "seq3"],
+        )
+
+        contrib_out = metagenome_contributions(func_abun, sample_abun)
+        self.assertEqual(contrib_out.shape, (17,9))
+
+        sample_one_contribs = contrib_out[contrib_out["sample"] == "sample1"]
+        self.assertEqual(sample_one_contribs.shape, (3, 9))
+        self.assertEqual(set(sample_one_contribs["taxon"].unique()), {"seq3"})
+        return
+        
 
     def test_norm_by_marker_copies(self):
         """Test that expected normalized sequence abundance table generated."""

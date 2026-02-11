@@ -420,7 +420,6 @@ def full_pipeline_split(
             + name_ref2
             + " in the study sequences. Continuing with only "
             + name_ref1,
-                file=sys.stderr,
         )
 
         # Update the predicted_funcs_split dictionary
