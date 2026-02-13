@@ -344,6 +344,13 @@ def metagenome_contributions(func_abun: pd.DataFrame, sample_abun: pd.DataFrame,
         single_abun = sample_abun[sample]
         single_abun = single_abun.iloc[single_abun.to_numpy().nonzero()]
 
+        if len(single_abun) == 0:
+            # If the sample has no sequences with non-zero abundance, skip it and log a warning.
+            logger.warning(
+                f"Sample {sample} has no sequences with non-zero abundance and will be skipped in the metagenome contribution calculations."
+            )
+            continue
+
         single_relabun = sample_relabun[sample]
         single_relabun = single_relabun.iloc[single_relabun.to_numpy().nonzero()]
 

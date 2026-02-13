@@ -266,6 +266,7 @@ class metagenome_pipeline_test(unittest.TestCase):
                 "sample1": [0, 0, 5],
                 "sample2": [1, 20, 5],
                 "sample3": [5, 5, 5],
+                "sample4": [0, 0, 0],
             },
             index=["seq1", "seq2", "seq3"],
         )
