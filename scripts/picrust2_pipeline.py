@@ -410,14 +410,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--log_file",
-    metavar="PATH",
-    type=str,
-    default="picrust2_pipeline.log",
-    help="Path to log file for detailed logging.",
-)
-
-parser.add_argument(
     "-v",
     "--version",
     default=False,
@@ -433,9 +425,7 @@ def main():
     args = parser.parse_args()
 
     # Set up logging based on command-line arguments
-    log_file_path = logger.get_log_file_path(
-        output_dir=args.output, log_filename=args.log_file
-    )
+    log_file_path = logger.get_log_file_path(output_dir=args.output)
     log = logger.setup_logging(
         verbose=args.verbose, debug=args.debug, log_file=log_file_path
     )
@@ -485,9 +475,8 @@ def main():
         )
 
     elapsed_time = time.time() - start_time
-    log.info(
-        "Completed PICRUSt2 pipeline in " + "%.2f" % elapsed_time + " seconds."
-    )
+    log.info("Completed PICRUSt2 pipeline in " + "%.2f" % elapsed_time + " seconds.")
+
 
 if __name__ == "__main__":
     main()
