@@ -149,10 +149,18 @@ class TestSetupLogging(unittest.TestCase):
     def test_setup_logging_with_logfile(self):
         """Test setup_logging creates log file."""
         log_file = os.path.join(self.temp_dir.name, "test_setup.log")
-        logger = setup_logging(log_file=log_file)
-        logger.info("Test message")
-        
+        logger = setup_logging(log_file=log_file,
+                               log_file_level=logging.DEBUG)
+        logger.info("Test info message")
+        logger.debug("Test debug message")
+
+        self.assertTrue(any(isinstance(h, logging.FileHandler) for h in logger.handlers))
         self.assertTrue(os.path.exists(log_file))
+        with open(log_file, 'r') as f:
+            content = f.read()
+            self.assertIn("Test debug message", content)
+
+        return
 
 
 class TestLogAndRaise(unittest.TestCase):
@@ -193,7 +201,7 @@ class TestGetLogFilePath(unittest.TestCase):
         """Test get_log_file_path with custom filename."""
         output_dir = self.temp_dir.name
         test_log_filename = "custom.log"
-        
+
         log_path = get_log_file_path(output_dir, log_filename=test_log_filename)
         self.assertEqual(log_path, os.path.join(output_dir, test_log_filename))
     
