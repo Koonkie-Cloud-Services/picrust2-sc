@@ -150,6 +150,7 @@ class TestSetupLogging(unittest.TestCase):
         """Test setup_logging creates log file."""
         log_file = os.path.join(self.temp_dir.name, "test_setup.log")
         logger = setup_logging(log_file=log_file,
+                               debug=True,
                                log_file_level=logging.DEBUG)
         logger.info("Test info message")
         logger.debug("Test debug message")

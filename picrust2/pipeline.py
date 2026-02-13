@@ -21,10 +21,7 @@ from picrust2.util import (
     check_empty_traits,
 )
 from picrust2.split_domains import get_lowest_nsti, combine_domain_predictions
-from picrust2.logger import get_picrust_logger, log_and_raise
-
-# Get logger for this module
-logger = get_picrust_logger(__name__)
+from picrust2.logger import get_picrust_logger, log_and_raise, get_log_file_path
 
 
 def full_pipeline_split(
@@ -66,6 +63,13 @@ def full_pipeline_split(
     domains (by default, bacteria and archaea).
     Descriptions of all of these input arguments/options are given in the
     picrust2_pipeline_split.py script."""
+
+    # Make sure the logger has been setup
+    logger = get_picrust_logger(
+        name=__name__,
+        verbose=verbose,
+        log_file=get_log_file_path(output_folder)
+    )
 
     # Throw warning if --per_sequence_contrib set but --stratified unset.
     if per_sequence_contrib and not stratified:
@@ -213,10 +217,10 @@ def full_pipeline_split(
     )
 
     # Check that sequence names in FASTA overlap with input table.
-    check_overlapping_seqs(study_fasta, input_table, verbose)
+    check_overlapping_seqs(study_fasta, input_table)
 
     # Check that there are no duplicated sequence names in the FASTA.
-    check_duplicated_seqnames(study_fasta, verbose)
+    check_duplicated_seqnames(study_fasta)
 
     # Check for existing outputs from previous run
     if check_existing_output(output_folder):
@@ -746,7 +750,7 @@ def full_pipeline_split(
     return (func_output, pathway_outfiles)
 
 
-def check_overlapping_seqs(in_seq, in_tab, verbose):
+def check_overlapping_seqs(in_seq, in_tab, logger=get_picrust_logger(__name__)):
     """Check that ASV ids overlap between the input FASTA and sequence
     abundance table. Will throw an error if none overlap and will otherwise
     print number of overlapping ids to STDERR. Also throw warning if input
@@ -784,7 +788,7 @@ def check_overlapping_seqs(in_seq, in_tab, verbose):
     )
 
 
-def check_duplicated_seqnames(in_seq, verbose):
+def check_duplicated_seqnames(in_seq, logger=get_picrust_logger(__name__)):
     """Check that ASV ids are not duplicated in the input FASTA.
     Will throw an error if any of the ids are duplicated, and will otherwise
     print number of ids to STDERR."""

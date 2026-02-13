@@ -74,7 +74,7 @@ class PicrustLogger:
         return self.logger
 
 
-def get_picrust_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+def get_picrust_logger(name: str, **kwargs) -> logging.Logger:
     """Get a configured PICRUSt2 logger instance.
 
     Args:
@@ -84,8 +84,15 @@ def get_picrust_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     Returns:
         Configured logger instance
     """
-    picrust_logger = PicrustLogger(name, level)
-    return picrust_logger.get_logger()
+    if logging.getLogger(name).handlers:
+        return logging.getLogger(name)
+    else:
+        return setup_logging(
+            log_file=kwargs.get("log_file", None),
+            level=kwargs.get("level", None),
+            verbose=kwargs.get("verbose", False),
+            debug=kwargs.get("debug", False),
+        )
 
 
 def setup_logging(
@@ -102,7 +109,9 @@ def setup_logging(
         Configured logger instance
     """
     # Determine logging level
-    if debug:
+    if kwargs.get("level", None):
+        level = kwargs["level"]
+    elif debug:
         level = logging.DEBUG
     elif verbose:
         level = logging.INFO
