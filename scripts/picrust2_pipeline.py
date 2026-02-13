@@ -413,7 +413,7 @@ parser.add_argument(
     "--log_file",
     metavar="PATH",
     type=str,
-    default="",
+    default="picrust2_pipeline.log",
     help="Path to log file for detailed logging.",
 )
 

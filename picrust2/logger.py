@@ -140,9 +140,10 @@ def get_log_file_path(output_dir: str, log_filename: str = "", default_filename:
         Full path to log file
     """
     if not log_filename:
-        log_filename = os.path.join(output_dir, default_filename)
+        log_filename = default_filename
 
-    if not os.path.exists(os.path.dirname(log_filename)):
-        os.makedirs(os.path.dirname(log_filename), exist_ok=True)
+    log_file_path = os.path.join(output_dir, log_filename)
+    if not os.path.exists(os.path.dirname(log_file_path)):
+        os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
 
-    return log_filename
+    return log_file_path

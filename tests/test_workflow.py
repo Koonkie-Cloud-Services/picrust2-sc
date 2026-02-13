@@ -43,6 +43,7 @@ class workflow_test(unittest.TestCase):
         system_call_check("place_seqs.py -h")
         system_call_check("pathway_pipeline.py -h")
         system_call_check("shuffle_predictions.py -h")
+        system_call_check("picrust2_pipeline.py -h")
 
     def test_full_pipeline_tsv(self):
         '''Test that full pipeline can be run without error with
