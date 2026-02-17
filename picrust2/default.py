@@ -2,6 +2,8 @@
 
 from os import path
 
+FUNC_TRAIT_OPTIONS = ["EC", "KO", "GO", "PFAM", "BIGG", "CAZY", "GENE_NAMES"]
+
 project_dir = path.dirname(path.abspath(__file__))
 
 default_ref_dir_bac = path.join(project_dir, "default_files", "bacteria",

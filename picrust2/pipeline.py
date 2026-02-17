@@ -3,6 +3,7 @@
 from os import path
 import sys
 from picrust2.default import (
+    FUNC_TRAIT_OPTIONS,
     default_ref_dir_bac,
     default_ref_dir_arc,
     default_tables_bac,
@@ -22,6 +23,149 @@ from picrust2.util import (
 )
 from picrust2.split_domains import get_lowest_nsti, combine_domain_predictions
 from picrust2.logger import get_picrust_logger, log_and_raise, get_log_file_path
+
+
+def validate_full_pipeline_inputs(**kwargs) -> None:
+    """Validate inputs for full_pipeline_split function. This is a separate
+    function to make it easier to test the input validation logic."""
+
+    logger = kwargs.get("logger", get_picrust_logger(__name__))
+
+    # Throw warning if --per_sequence_contrib set but --stratified unset.
+    if kwargs["per_sequence_contrib"] and not kwargs["stratified"]:
+        logger.info(
+            "\nThe option --per_sequence_contrib was set, but not the option "
+            "--stratified. This means that a stratified pathway table will "
+            "be output only (i.e. a stratified metagenome table will NOT "
+            "be output).\n"
+        )
+
+    # Exit if only one set of custom trait tables has been given
+    if kwargs["custom_trait_tables_ref1"] is None and not kwargs["custom_trait_tables_ref2"] is None:
+        log_and_raise(
+            logger,
+            "You've set some custom trait tables for reference set 1 but not "
+            "for reference set 2. Please set both of them.",
+        )
+    elif not kwargs["custom_trait_tables_ref1"] is None and kwargs["custom_trait_tables_ref2"] is None:
+        log_and_raise(
+            logger,
+            "You've set some custom trait tables for reference set 2 but not "
+            "for reference set 1. Please set both of them.",
+        )
+
+    if kwargs["custom_trait_tables_ref1"] is None:
+        # Check that specified functional categories are allowed.
+        funcs = kwargs["in_traits"].split(",")
+        for func in funcs:
+            if func not in FUNC_TRAIT_OPTIONS:
+                log_and_raise(
+                    logger,
+                    f"Specified category {func} is not one of the default categories.",
+                )
+
+        funcs_ref1 = funcs
+        funcs_ref2 = funcs
+
+        func_tables_ref1 = default_tables_bac
+        func_tables_ref2 = default_tables_arc
+
+    else:
+        # Split paths to input custom trait tables and take the basename to be
+        # the function id.
+        funcs_ref1, funcs_ref2 = [], []
+        func_tables_ref1, func_tables_ref2 = {}, {}
+
+        for custom in kwargs["custom_trait_tables_ref1"].split(","):
+
+            func_id = path.splitext(path.basename(custom))[0]
+            funcs_ref1.append(func_id)
+            func_tables_ref1[func_id] = custom
+
+        for custom in kwargs["custom_trait_tables_ref2"].split(","):
+
+            func_id = path.splitext(path.basename(custom))[0]
+            funcs_ref2.append(func_id)
+            func_tables_ref2[func_id] = custom
+
+    # Add reaction function to be in set of gene families if it is not already
+    # and as long as pathways are also to be predicted.
+    # Note that by default this is EC, so we would only be adding it if EC wasn't
+    # given as an option but we do want pathways to be predicted.
+    if kwargs["rxn_func"] not in funcs_ref1 and not kwargs["no_pathways"]:
+        orig_rxn_func = kwargs["rxn_func"]
+        rxn_func = path.splitext(path.basename(orig_rxn_func))[0]
+        funcs_ref1.append(rxn_func)
+        funcs_ref2.append(rxn_func)
+
+        if rxn_func not in func_tables_ref1:
+            func_tables_ref1[rxn_func] = orig_rxn_func
+        if rxn_func not in func_tables_ref2:
+            func_tables_ref2[rxn_func] = orig_rxn_func
+
+    # Check that all input files exist.
+    ref_msa_ref1, tree_ref1, hmm_ref1, model_ref1 = identify_ref_files(
+        kwargs["ref_dir1"], kwargs["placement_tool"]
+    )
+    ref_msa_ref2, tree_ref2, hmm_ref2, model_ref2 = identify_ref_files(
+        kwargs["ref_dir2"], kwargs["placement_tool"]
+    )
+    files2check = (
+        [
+            kwargs["study_fasta"],
+            kwargs["input_table"],
+            ref_msa_ref1,
+            tree_ref1,
+            hmm_ref1,
+            model_ref1,
+            ref_msa_ref2,
+            tree_ref2,
+            hmm_ref2,
+            model_ref2,
+        ]
+        + list(func_tables_ref1.values())
+        + list(func_tables_ref2.values())
+    )
+
+    if not kwargs["no_pathways"]:
+        files2check.append(kwargs["pathway_map"])
+
+        # Throw warning if default pathway mapfile used with non-default
+        # reference files.
+        if kwargs["pathway_map"] == default_pathway_map and kwargs["ref_dir1"] != default_ref_dir_bac:
+            logger.info(
+                "Warning - non-default reference files specified with "
+                "default pathway mapfile of prokaryote-specific MetaCyc "
+                "pathways (--pathway_map option). This usage may be "
+                "unintended.",
+            )
+
+        if not kwargs["no_regroup"]:
+            files2check.append(kwargs["regroup_map"])
+
+    # This will throw an error if any input files are not found.
+    check_files_exist(files2check)
+
+    # This will throw an error if any trait tables are entirely empty.
+    check_empty_traits(
+        list(func_tables_ref1.values()) + list(func_tables_ref2.values())
+    )
+
+    # Check that sequence names in FASTA overlap with input table.
+    check_overlapping_seqs(kwargs["study_fasta"], kwargs["input_table"], logger=logger)
+
+    # Check that there are no duplicated sequence names in the FASTA.
+    check_duplicated_seqnames(kwargs["study_fasta"])
+
+    # Check for existing outputs from previous run
+    if check_existing_output(kwargs["output_folder"]):
+        log_and_raise(
+            logger,
+            f"Stopping since output directory {kwargs['output_folder']} appears to contain "
+            f"outputs from a previous PICRUSt2 run. Please use a different output "
+            f"directory or remove existing files.",
+        )
+    return
 
 
 def full_pipeline_split(
@@ -66,19 +210,8 @@ def full_pipeline_split(
 
     # Make sure the logger has been setup
     logger = get_picrust_logger(
-        name=__name__,
-        verbose=verbose,
-        log_file=get_log_file_path(output_folder)
+        name=__name__, verbose=verbose, log_file=get_log_file_path(output_folder)
     )
-
-    # Throw warning if --per_sequence_contrib set but --stratified unset.
-    if per_sequence_contrib and not stratified:
-        logger.info(
-            "\nThe option --per_sequence_contrib was set, but not the option "
-            "--stratified. This means that a stratified pathway table will "
-            "be output only (i.e. a stratified metagenome table will NOT "
-            "be output).\n"
-        )
 
     if ref_dir1 == default_ref_dir_bac:
         out_tree_ref1 = path.join(output_folder, "bac.tre")
@@ -93,145 +226,25 @@ def full_pipeline_split(
         out_tree_ref2 = path.join(output_folder, "ref2.tre")
         name_ref2 = "ref2"
 
-    # Exit if only one set of custom trait tables has been gives
-    if custom_trait_tables_ref1 is None and not custom_trait_tables_ref2 is None:
-        log_and_raise(
-            logger,
-            "You've set some custom trait tables for reference set 1 but not "
-            "for reference set 2. Please set both of them.",
-        )
-    elif not custom_trait_tables_ref1 is None and custom_trait_tables_ref2 is None:
-        log_and_raise(
-            logger,
-            "You've set some custom trait tables for reference set 2 but not "
-            "for reference set 1. Please set both of them.",
-        )
-
-    if custom_trait_tables_ref1 is None:
-
-        # Check that specified functional categories are allowed.
-        FUNC_TRAIT_OPTIONS = ["EC", "KO", "GO", "PFAM", "BIGG", "CAZY", "GENE_NAMES"]
-        funcs = in_traits.split(",")
-        for func in funcs:
-            if func not in FUNC_TRAIT_OPTIONS:
-                log_and_raise(
-                    logger,
-                    f"Specified category {func} is not one of the default categories."
-                )
-
-        funcs_ref1 = funcs
-        funcs_ref2 = funcs
-
-        func_tables_ref1 = default_tables_bac
-        func_tables_ref2 = default_tables_arc
-
-    else:
-        # Split paths to input custom trait tables and take the basename to be
-        # the function id.
-        funcs_ref1, funcs_ref2 = [], []
-        func_tables_ref1, func_tables_ref2 = {}, {}
-
-        for custom in custom_trait_tables_ref1.split(","):
-
-            func_id = path.splitext(path.basename(custom))[0]
-            funcs_ref1.append(func_id)
-            func_tables_ref1[func_id] = custom
-
-        for custom in custom_trait_tables_ref2.split(","):
-
-            func_id = path.splitext(path.basename(custom))[0]
-            funcs_ref2.append(func_id)
-            func_tables_ref2[func_id] = custom
-
-    # Add reaction function to be in set of gene families if it is not already
-    # and as long as pathways are also to be predicted.
-    # Note that by default this is EC, so we would only be adding it if EC wasn't
-    # given as an option but we do want pathways to be predicted.
-    if rxn_func not in funcs_ref1 and not no_pathways:
-        orig_rxn_func = rxn_func
-        rxn_func = path.splitext(path.basename(rxn_func))[0]
-        funcs_ref1.append(rxn_func)
-        funcs_ref2.append(rxn_func)
-
-        if rxn_func not in func_tables_ref1:
-            func_tables_ref1[rxn_func] = orig_rxn_func
-        if rxn_func not in func_tables_ref2:
-            func_tables_ref2[rxn_func] = orig_rxn_func
-
-    # if not skip_norm:
-    #     # Append marker as well, since this also needs to be run.
-    #     funcs_ref1.append("marker")
-    #     func_tables_ref1["marker"] = marker_gene_table
-    # Append marker
-    # funcs_ref1.append("marker")
-    # funcs_ref2.append("marker")
-    # func_tables_ref1["marker"] = marker_gene_table_ref1
-    # func_tables_ref2["marker"] = marker_gene_table_ref2
-
-    # Check that all input files exist.
-    ref_msa_ref1, tree_ref1, hmm_ref1, model_ref1 = identify_ref_files(
-        ref_dir1, placement_tool
-    )
-    ref_msa_ref2, tree_ref2, hmm_ref2, model_ref2 = identify_ref_files(
-        ref_dir2, placement_tool
-    )
-    files2check = (
-        [
-            study_fasta,
-            input_table,
-            ref_msa_ref1,
-            tree_ref1,
-            hmm_ref1,
-            model_ref1,
-            ref_msa_ref2,
-            tree_ref2,
-            hmm_ref2,
-            model_ref2,
-        ]
-        + list(func_tables_ref1.values())
-        + list(func_tables_ref2.values())
+    # Validate inputs
+    validate_full_pipeline_inputs(
+        placement_tool = placement_tool,
+        study_fasta = study_fasta,
+        input_table = input_table,
+        ref_dir1 = ref_dir1,
+        ref_dir2 = ref_dir2,
+        custom_trait_tables_ref1 = custom_trait_tables_ref1,
+        custom_trait_tables_ref2 = custom_trait_tables_ref2,
+        in_traits = in_traits,
+        rxn_func = rxn_func,
+        no_pathways = no_pathways,
+        per_sequence_contrib = per_sequence_contrib,
+        stratified = stratified,
+        output_folder = output_folder,
+        logger = logger,
     )
 
-    if not no_pathways:
-        files2check.append(pathway_map)
-
-        # Throw warning if default pathway mapfile used with non-default
-        # reference files.
-        if pathway_map == default_pathway_map and ref_dir1 != default_ref_dir_bac:
-            logger.info(
-                "Warning - non-default reference files specified with "
-                "default pathway mapfile of prokaryote-specific MetaCyc "
-                "pathways (--pathway_map option). This usage may be "
-                "unintended.",
-            )
-
-        if not no_regroup:
-            files2check.append(regroup_map)
-
-    # This will throw an error if any input files are not found.
-    check_files_exist(files2check)
-
-    # This will throw an error if any trait tables are entirely empty.
-    check_empty_traits(
-        list(func_tables_ref1.values()) + list(func_tables_ref2.values())
-    )
-
-    # Check that sequence names in FASTA overlap with input table.
-    check_overlapping_seqs(study_fasta, input_table)
-
-    # Check that there are no duplicated sequence names in the FASTA.
-    check_duplicated_seqnames(study_fasta)
-
-    # Check for existing outputs from previous run
-    if check_existing_output(output_folder):
-        log_and_raise(
-            logger,
-            f"Stopping since output directory {output_folder} appears to contain "
-            f"outputs from a previous PICRUSt2 run. Please use a different output "
-            f"directory or remove existing files.",
-        )
-
-    # Make output folder.
+    # Make output folder
     make_output_dir(output_folder)
 
     logger.info("Placing sequences onto reference tree")
@@ -305,8 +318,7 @@ def full_pipeline_split(
     )
 
     logger.info(
-        "Finished placing sequences on output tree for reference 1: "
-        + out_tree_ref1,
+        "Finished placing sequences on output tree for reference 1: " + out_tree_ref1,
     )
 
     system_call_check(
@@ -317,8 +329,7 @@ def full_pipeline_split(
     )
 
     logger.info(
-        "Finished placing sequences on output tree for reference 2: "
-        + out_tree_ref2,
+        "Finished placing sequences on output tree for reference 2: " + out_tree_ref2,
     )
     # Get predictions for all specified functions and keep track of outfiles.
     predicted_funcs_split = {}
@@ -507,9 +518,7 @@ def full_pipeline_split(
                 hsp_cmd, print_command=verbose, print_stdout=verbose, print_stderr=True
             )
 
-    logger.info(
-        "Finished getting functional predictions for all traits."
-    )
+    logger.info("Finished getting functional predictions for all traits.")
 
     # Get a list of the predictions to be joined together and join them for each domain
     # Note that this checks the names so that it is compatible with custom trait ables
@@ -813,32 +822,33 @@ def check_duplicated_seqnames(in_seq, logger=get_picrust_logger(__name__)):
         )
     )
 
+
 def check_existing_output(output_folder: str) -> bool:
     """Check if output folder contains outputs from a previous PICRUSt2 run.
     Returns True if existing outputs are detected, False otherwise."""
-    
+
     if not path.exists(output_folder):
         return False
-    
+
     # Key output files that indicate a previous run
     key_outputs = [
         "combined_marker_predicted_and_nsti.tsv.gz",
         "bac.tre",
-        "arc.tre", 
+        "arc.tre",
         "ref1.tre",
         "ref2.tre",
         "intermediate",
-        "pathways_out"
+        "pathways_out",
     ]
-    
+
     existing_outputs = []
     for output_file in key_outputs:
         output_path = path.join(output_folder, output_file)
         if path.exists(output_path):
             existing_outputs.append(output_file)
-    
+
     # If multiple key outputs exist, likely a previous run
     if len(existing_outputs) >= 2:
         return True
-    
+
     return False
