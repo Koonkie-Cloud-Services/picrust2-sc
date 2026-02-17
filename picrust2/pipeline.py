@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from os import path
-import sys
 from picrust2.default import (
     FUNC_TRAIT_OPTIONS,
     default_ref_dir_bac,
@@ -9,6 +8,7 @@ from picrust2.default import (
     default_tables_bac,
     default_tables_arc,
     default_pathway_map,
+    default_regroup_map
 )
 from picrust2.place_seqs import identify_ref_files
 from picrust2.util import (
@@ -25,36 +25,9 @@ from picrust2.split_domains import get_lowest_nsti, combine_domain_predictions
 from picrust2.logger import get_picrust_logger, log_and_raise, get_log_file_path
 
 
-def validate_full_pipeline_inputs(**kwargs) -> None:
-    """Validate inputs for full_pipeline_split function. This is a separate
-    function to make it easier to test the input validation logic."""
-
+def get_function_names_and_tables(**kwargs):
     logger = kwargs.get("logger", get_picrust_logger(__name__))
-
-    # Throw warning if --per_sequence_contrib set but --stratified unset.
-    if kwargs["per_sequence_contrib"] and not kwargs["stratified"]:
-        logger.info(
-            "\nThe option --per_sequence_contrib was set, but not the option "
-            "--stratified. This means that a stratified pathway table will "
-            "be output only (i.e. a stratified metagenome table will NOT "
-            "be output).\n"
-        )
-
-    # Exit if only one set of custom trait tables has been given
-    if kwargs["custom_trait_tables_ref1"] is None and not kwargs["custom_trait_tables_ref2"] is None:
-        log_and_raise(
-            logger,
-            "You've set some custom trait tables for reference set 1 but not "
-            "for reference set 2. Please set both of them.",
-        )
-    elif not kwargs["custom_trait_tables_ref1"] is None and kwargs["custom_trait_tables_ref2"] is None:
-        log_and_raise(
-            logger,
-            "You've set some custom trait tables for reference set 2 but not "
-            "for reference set 1. Please set both of them.",
-        )
-
-    if kwargs["custom_trait_tables_ref1"] is None:
+    if not kwargs["custom_trait_tables_ref1"]:
         # Check that specified functional categories are allowed.
         funcs = kwargs["in_traits"].split(",")
         for func in funcs:
@@ -87,6 +60,47 @@ def validate_full_pipeline_inputs(**kwargs) -> None:
             func_id = path.splitext(path.basename(custom))[0]
             funcs_ref2.append(func_id)
             func_tables_ref2[func_id] = custom
+    return funcs_ref1, funcs_ref2, func_tables_ref1, func_tables_ref2
+
+
+def validate_full_pipeline_inputs(**kwargs) -> None:
+    """Validate inputs for full_pipeline_split function. This is a separate
+    function to make it easier to test the input validation logic."""
+
+    logger = kwargs.get("logger", get_picrust_logger(__name__))
+
+    # Throw warning if --per_sequence_contrib set but --stratified unset.
+    if kwargs["per_sequence_contrib"] and not kwargs["stratified"]:
+        logger.info(
+            "\nThe option --per_sequence_contrib was set, but not the option "
+            "--stratified. This means that a stratified pathway table will "
+            "be output only (i.e. a stratified metagenome table will NOT "
+            "be output).\n"
+        )
+
+    # Exit if only one set of custom trait tables has been given
+    if (
+        kwargs["custom_trait_tables_ref1"] == ""
+        and kwargs["custom_trait_tables_ref2"] != ""
+    ):
+        log_and_raise(
+            logger,
+            "You've set some custom trait tables for reference set 1 but not "
+            "for reference set 2. Please set both of them.",
+        )
+    elif (
+        kwargs["custom_trait_tables_ref1"] != ""
+        and kwargs["custom_trait_tables_ref2"] == ""
+    ):
+        log_and_raise(
+            logger,
+            "You've set some custom trait tables for reference set 2 but not "
+            "for reference set 1. Please set both of them.",
+        )
+
+    funcs_ref1, funcs_ref2, func_tables_ref1, func_tables_ref2 = (
+        get_function_names_and_tables(**kwargs)
+    )
 
     # Add reaction function to be in set of gene families if it is not already
     # and as long as pathways are also to be predicted.
@@ -103,25 +117,18 @@ def validate_full_pipeline_inputs(**kwargs) -> None:
         if rxn_func not in func_tables_ref2:
             func_tables_ref2[rxn_func] = orig_rxn_func
 
-    # Check that all input files exist.
-    ref_msa_ref1, tree_ref1, hmm_ref1, model_ref1 = identify_ref_files(
-        kwargs["ref_dir1"], kwargs["placement_tool"]
-    )
-    ref_msa_ref2, tree_ref2, hmm_ref2, model_ref2 = identify_ref_files(
-        kwargs["ref_dir2"], kwargs["placement_tool"]
-    )
     files2check = (
         [
             kwargs["study_fasta"],
             kwargs["input_table"],
-            ref_msa_ref1,
-            tree_ref1,
-            hmm_ref1,
-            model_ref1,
-            ref_msa_ref2,
-            tree_ref2,
-            hmm_ref2,
-            model_ref2,
+            kwargs["ref_msa_ref1"],
+            kwargs["tree_ref1"],
+            kwargs["hmm_ref1"],
+            kwargs["model_ref1"],
+            kwargs["ref_msa_ref2"],
+            kwargs["tree_ref2"],
+            kwargs["hmm_ref2"],
+            kwargs["model_ref2"],
         ]
         + list(func_tables_ref1.values())
         + list(func_tables_ref2.values())
@@ -132,7 +139,10 @@ def validate_full_pipeline_inputs(**kwargs) -> None:
 
         # Throw warning if default pathway mapfile used with non-default
         # reference files.
-        if kwargs["pathway_map"] == default_pathway_map and kwargs["ref_dir1"] != default_ref_dir_bac:
+        if (
+            kwargs["pathway_map"] == default_pathway_map
+            and kwargs["ref_dir1"] != default_ref_dir_bac
+        ):
             logger.info(
                 "Warning - non-default reference files specified with "
                 "default pathway mapfile of prokaryote-specific MetaCyc "
@@ -169,38 +179,38 @@ def validate_full_pipeline_inputs(**kwargs) -> None:
 
 
 def full_pipeline_split(
-    study_fasta,
-    input_table,
-    output_folder,
-    processes,
-    placement_tool,
-    ref_dir1,
-    ref_dir2,
-    in_traits,
-    custom_trait_tables_ref1,
-    custom_trait_tables_ref2,
-    marker_gene_table_ref1,
-    marker_gene_table_ref2,
-    pathway_map,
-    rxn_func,
-    no_pathways,
-    regroup_map,
-    no_regroup,
-    stratified,
-    max_nsti,
-    min_reads,
-    min_samples,
-    hsp_method,
-    edge_exponent,
-    min_align,
-    skip_minpath,
-    no_gap_fill,
-    coverage,
-    per_sequence_contrib,
-    wide_table,
-    skip_norm,
-    remove_intermediate,
-    verbose,
+    study_fasta: str,
+    input_table: str,
+    output_folder: str,
+    in_traits: str,
+    marker_gene_table_ref1: str,
+    marker_gene_table_ref2: str,
+    pathway_map: str,
+    rxn_func: str,
+    processes: int = 1,
+    custom_trait_tables_ref1: str = "",
+    custom_trait_tables_ref2: str = "",
+    placement_tool: str = "epa-ng",
+    ref_dir1: str = default_ref_dir_bac,
+    ref_dir2: str = default_ref_dir_arc,
+    no_pathways: bool = False,
+    regroup_map: str = default_regroup_map,
+    no_regroup: bool = False,
+    stratified: bool = False,
+    max_nsti: float = 2.0,
+    min_reads: int = 1,
+    min_samples: int = 1,
+    hsp_method: str = "mp",
+    edge_exponent: float = 0.5,
+    min_align: float = 0.8,
+    skip_minpath: bool = False,
+    no_gap_fill: bool = False,
+    coverage: bool = False,
+    per_sequence_contrib: bool = False,
+    wide_table: bool = False,
+    skip_norm: bool = False,
+    remove_intermediate: bool = False,
+    verbose: bool = False,
 ):
     """Function that contains wrapper commands for full PICRUSt2 pipeline.
     This is the version that incorporates separate placement steps for two
@@ -226,22 +236,49 @@ def full_pipeline_split(
         out_tree_ref2 = path.join(output_folder, "ref2.tre")
         name_ref2 = "ref2"
 
+    ref_msa_ref1, tree_ref1, hmm_ref1, model_ref1 = identify_ref_files(
+        ref_dir1, placement_tool
+    )
+    ref_msa_ref2, tree_ref2, hmm_ref2, model_ref2 = identify_ref_files(
+        ref_dir2, placement_tool
+    )
+
     # Validate inputs
     validate_full_pipeline_inputs(
-        placement_tool = placement_tool,
-        study_fasta = study_fasta,
-        input_table = input_table,
-        ref_dir1 = ref_dir1,
-        ref_dir2 = ref_dir2,
-        custom_trait_tables_ref1 = custom_trait_tables_ref1,
-        custom_trait_tables_ref2 = custom_trait_tables_ref2,
-        in_traits = in_traits,
-        rxn_func = rxn_func,
-        no_pathways = no_pathways,
-        per_sequence_contrib = per_sequence_contrib,
-        stratified = stratified,
-        output_folder = output_folder,
-        logger = logger,
+        placement_tool=placement_tool,
+        study_fasta=study_fasta,
+        input_table=input_table,
+        ref_dir1=ref_dir1,
+        ref_msa_ref1=ref_msa_ref1,
+        tree_ref1=tree_ref1,
+        hmm_ref1=hmm_ref1,
+        model_ref1=model_ref1,
+        ref_dir2=ref_dir2,
+        ref_msa_ref2=ref_msa_ref2,
+        tree_ref2=tree_ref2,
+        hmm_ref2=hmm_ref2,
+        model_ref2=model_ref2,
+        custom_trait_tables_ref1=custom_trait_tables_ref1,
+        custom_trait_tables_ref2=custom_trait_tables_ref2,
+        in_traits=in_traits,
+        rxn_func=rxn_func,
+        no_pathways=no_pathways,
+        no_regroup=no_regroup,
+        regroup_map=regroup_map,
+        per_sequence_contrib=per_sequence_contrib,
+        stratified=stratified,
+        output_folder=output_folder,
+        pathway_map=pathway_map,
+        logger=logger,
+    )
+
+    funcs_ref1, funcs_ref2, func_tables_ref1, func_tables_ref2 = (
+        get_function_names_and_tables(
+            custom_trait_tables_ref1=custom_trait_tables_ref1,
+            custom_trait_tables_ref2=custom_trait_tables_ref2,
+            in_traits=in_traits,
+            logger=logger,
+        )
     )
 
     # Make output folder
@@ -652,13 +689,16 @@ def full_pipeline_split(
 
         path_output_dir = path.join(output_folder, "pathways_out")
 
-        logger.info("Inferring pathways from predicted " + rxn_func)
+        # Normalize rxn_func to basename if it's a file path
+        rxn_func_key = path.splitext(path.basename(rxn_func))[0]
+
+        logger.info("Inferring pathways from predicted " + rxn_func_key)
 
         # Determine whether stratified or unstratified table should be input.
         if not stratified or per_sequence_contrib:
-            rxn_input_metagenome = func_output[rxn_func][0]
+            rxn_input_metagenome = func_output[rxn_func_key][0]
         else:
-            rxn_input_metagenome = func_output[rxn_func][1]
+            rxn_input_metagenome = func_output[rxn_func_key][1]
 
         pathway_pipeline_cmd = [
             "pathway_pipeline.py",
@@ -698,14 +738,14 @@ def full_pipeline_split(
                 norm_sequence_abun = input_table
             else:
                 norm_sequence_abun = path.join(
-                    output_folder, rxn_func + "_metagenome_out", "seqtab_norm.tsv.gz"
+                    output_folder, rxn_func_key + "_metagenome_out", "seqtab_norm.tsv.gz"
                 )
 
             pathway_pipeline_cmd += ["--per_sequence_abun", norm_sequence_abun]
 
             pathway_pipeline_cmd += [
                 "--per_sequence_function",
-                predicted_funcs[rxn_func],
+                predicted_funcs[rxn_func_key],
             ]
 
         if verbose:
