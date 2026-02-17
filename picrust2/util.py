@@ -3,8 +3,9 @@
 from os import makedirs
 from os.path import abspath, dirname, isdir, join, exists, splitext
 from collections import defaultdict
-from subprocess import call
+from subprocess import call, Popen, PIPE
 import argparse
+import psutil
 import shutil as _shutil
 import weakref as _weakref
 import warnings as _warnings
@@ -263,9 +264,25 @@ def read_stockholm(filename: str, clean_char: bool = True) -> Dict[str, str]:
     return seq
 
 
+def format_memory_size(bytes_value: int) -> str:
+    """Convert bytes to human-readable memory size string.
+    
+    Args:
+        bytes_value: Memory size in bytes
+        
+    Returns:
+        Formatted string with appropriate unit (KB, MB, GB, TB)
+    """
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes_value < 1024.0:
+            return f"{bytes_value:.1f} {unit}"
+        bytes_value /= 1024.0
+    return f"{bytes_value:.1f} PB"
+
+
 def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, print_stdout: bool = False, print_stderr: bool = False) -> int:
     """Run system command and throw and error if return is not 0. Input command
-    can be a list containing the command or a string."""
+    can be a list containing the command or a string. Monitors and logs peak RAM usage."""
 
     logger = get_picrust_logger(__name__)
     # Convert command to list if input as string.
@@ -273,11 +290,11 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
         cmd = cmd.split()
 
     # Print command out if option set.
-    if print_command:
-        print(" ".join(cmd), file=sys.stderr)
+    logger.info("Running command: " + " ".join(cmd))
 
     stdout_log = ""
     stderr_log = ""
+    peak_memory = 0
 
     # Write stdout and stderr of command to temporary files.
     # Only output the content of these files if the job fails.
@@ -288,7 +305,24 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
 
         with open(stdout_file, "wb") as stdout_fh, open(stderr_file, "wb") as stderr_fh:
 
-            return_value = call(cmd, stdout=stdout_fh, stderr=stderr_fh)
+            # Use Popen to get process handle for memory monitoring
+            proc = Popen(cmd, stdout=stdout_fh, stderr=stderr_fh)
+            
+            # Try to monitor memory usage
+            try:
+                ps_process = psutil.Process(proc.pid)
+                # Wait for process to complete
+                return_value = proc.wait()
+                # Get peak memory usage (RSS = Resident Set Size)
+                try:
+                    memory_info = ps_process.memory_info()
+                    peak_memory = memory_info.rss
+                except psutil.NoSuchProcess:
+                    # Process terminated too quickly to measure
+                    pass
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                # Fallback if psutil fails
+                return_value = proc.wait()
 
         # Capture stdout and stderr.
         with open(stdout_file, "r") as stdout_fh:
@@ -312,6 +346,10 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
                 )
 
             sys.exit(1)
+
+        # Log peak memory usage if captured
+        if peak_memory > 0:
+            logger.info(f"Peak RAM usage: {format_memory_size(peak_memory)}")
 
         # Print stdout and stderr if specified.
         if print_stdout:

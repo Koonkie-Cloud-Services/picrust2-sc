@@ -24,6 +24,7 @@ dependencies:
 - joblib >=1.0.1
 - numpy >=1.19.5
 - pandas >=1.1.5
+- psutil >=5.8.0
 - pytest >=4.4.1
 - pytest-cov >=2.6.1
 - typeguard =4.4.2

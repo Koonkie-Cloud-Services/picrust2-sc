@@ -79,21 +79,24 @@ def get_picrust_logger(name: str, **kwargs) -> logging.Logger:
 
     Args:
         name: Logger name (typically __name__)
-        level: Logging level (default: INFO)
-
+        kwargs: Additional keyword arguments for logging configuration
+            (e.g., log_file, level, verbose, debug)
     Returns:
         Configured logger instance
     """
     if logging.getLogger(name).handlers:
-        return logging.getLogger(name)
+        logger = logging.getLogger(name)
+        logger.debug("Using existing logger instance for %s", name)
     else:
-        return setup_logging(
+        logger = setup_logging(
             log_file=kwargs.get("log_file", None),
             level=kwargs.get("level", None),
             verbose=kwargs.get("verbose", False),
             debug=kwargs.get("debug", False),
         )
+        logger.debug("Creating new logger instance for %s", name)
 
+    return logger
 
 def setup_logging(
     verbose: bool = False, debug: bool = False, log_file: Optional[str] = None, **kwargs

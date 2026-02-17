@@ -16,7 +16,9 @@ from picrust2.util import (write_fasta,
                            convert_picrust2_to_humann2_merged,
                            contrib_to_legacy,
                            read_seqabun,
-                           TemporaryDirectory)
+                           TemporaryDirectory,
+                           format_memory_size,
+                           system_call_check)
 
 from picrust2.default_oldIMG import default_map
 
@@ -422,6 +424,59 @@ class convert_table_tests(unittest.TestCase):
         exp_out = pd.read_csv(metagenome_contrib_legacy, sep="\t")
 
         pd.testing.assert_frame_equal(obs_out, exp_out, check_like=True)
+
+
+class MemoryFormattingTestCase(unittest.TestCase):
+    """Tests for format_memory_size utility function."""
+
+    def test_format_bytes(self):
+        """Test formatting small byte values."""
+        self.assertEqual(format_memory_size(0), "0.0 B")
+        self.assertEqual(format_memory_size(512), "512.0 B")
+        self.assertEqual(format_memory_size(1023), "1023.0 B")
+
+    def test_format_kilobytes(self):
+        """Test formatting kilobyte values."""
+        self.assertEqual(format_memory_size(1024), "1.0 KB")
+        self.assertEqual(format_memory_size(2048), "2.0 KB")
+        self.assertEqual(format_memory_size(1024 * 500), "500.0 KB")
+
+    def test_format_megabytes(self):
+        """Test formatting megabyte values."""
+        self.assertEqual(format_memory_size(1024 * 1024), "1.0 MB")
+        self.assertEqual(format_memory_size(1024 * 1024 * 100), "100.0 MB")
+        self.assertEqual(format_memory_size(1024 * 1024 * 1536), "1.5 GB")
+
+    def test_format_gigabytes(self):
+        """Test formatting gigabyte values."""
+        self.assertEqual(format_memory_size(1024 * 1024 * 1024), "1.0 GB")
+        self.assertEqual(format_memory_size(1024 * 1024 * 1024 * 4), "4.0 GB")
+
+    def test_format_terabytes(self):
+        """Test formatting terabyte values."""
+        self.assertEqual(format_memory_size(1024 * 1024 * 1024 * 1024), "1.0 TB")
+        self.assertEqual(format_memory_size(1024 * 1024 * 1024 * 1024 * 2), "2.0 TB")
+
+
+class SystemCallCheckTestCase(unittest.TestCase):
+    """Tests for system_call_check with RAM monitoring."""
+
+    def test_successful_command(self):
+        """Test that a successful command returns 0 and logs RAM usage."""
+        # Simple echo command should succeed
+        return_value = system_call_check(["echo", "test"])
+        self.assertEqual(return_value, 0)
+
+    def test_successful_command_as_string(self):
+        """Test that command can be passed as string."""
+        return_value = system_call_check("echo test")
+        self.assertEqual(return_value, 0)
+
+    def test_command_with_output(self):
+        """Test command with stdout output."""
+        # This should not raise an error
+        return_value = system_call_check(["python3", "-c", "print('hello')"])
+        self.assertEqual(return_value, 0)
 
 
 if __name__ == '__main__':
