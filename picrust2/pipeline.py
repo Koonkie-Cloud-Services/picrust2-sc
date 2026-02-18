@@ -71,7 +71,7 @@ def validate_full_pipeline_inputs(**kwargs) -> None:
 
     # Throw warning if --per_sequence_contrib set but --stratified unset.
     if kwargs["per_sequence_contrib"] and not kwargs["stratified"]:
-        logger.info(
+        logger.warning(
             "\nThe option --per_sequence_contrib was set, but not the option "
             "--stratified. This means that a stratified pathway table will "
             "be output only (i.e. a stratified metagenome table will NOT "
@@ -143,8 +143,8 @@ def validate_full_pipeline_inputs(**kwargs) -> None:
             kwargs["pathway_map"] == default_pathway_map
             and kwargs["ref_dir1"] != default_ref_dir_bac
         ):
-            logger.info(
-                "Warning - non-default reference files specified with "
+            logger.warning(
+                "non-default reference files specified with "
                 "default pathway mapfile of prokaryote-specific MetaCyc "
                 "pathways (--pathway_map option). This usage may be "
                 "unintended.",
@@ -211,7 +211,7 @@ def full_pipeline_split(
     skip_norm: bool = False,
     remove_intermediate: bool = False,
     verbose: bool = False,
-    debug: bool = False,
+    debug: bool = True,
 ):
     """Function that contains wrapper commands for full PICRUSt2 pipeline.
     This is the version that incorporates separate placement steps for two
@@ -350,7 +350,6 @@ def full_pipeline_split(
 
     system_call_check(
         place_seqs_cmd_ref1,
-        print_command=verbose,
         print_stdout=verbose,
         print_stderr=True,
     )
@@ -361,7 +360,6 @@ def full_pipeline_split(
 
     system_call_check(
         place_seqs_cmd_ref2,
-        print_command=verbose,
         print_stdout=verbose,
         print_stderr=True,
     )
@@ -413,7 +411,7 @@ def full_pipeline_split(
             hsp_cmd.append("--verbose")
 
         system_call_check(
-            hsp_cmd, print_command=verbose, print_stdout=verbose, print_stderr=True
+            hsp_cmd, print_stdout=verbose, print_stderr=True
         )
 
     logger.info(
@@ -553,7 +551,7 @@ def full_pipeline_split(
                 hsp_cmd.append("--verbose")
 
             system_call_check(
-                hsp_cmd, print_command=verbose, print_stdout=verbose, print_stderr=True
+                hsp_cmd, print_stdout=verbose, print_stderr=True
             )
 
     logger.info("Finished getting functional predictions for all traits.")
@@ -582,8 +580,8 @@ def full_pipeline_split(
 
         if len(combining) == 1:
             predicted_funcs[func] = predicted_funcs_split[combining[0]]
-            logger.info(
-                "Warning: There was only one file for the function: " + func + "\n"
+            logger.warning(
+                "There was only one file for the function: " + func + "\n"
                 "Maybe that's fine if you used custom traits or there were no sequences "
                 "matching one of the domains.",
             )
@@ -678,7 +676,6 @@ def full_pipeline_split(
 
         system_call_check(
             metagenome_pipeline_cmd,
-            print_command=verbose,
             print_stdout=verbose,
             print_stderr=True,
         )
@@ -754,7 +751,6 @@ def full_pipeline_split(
 
         system_call_check(
             pathway_pipeline_cmd,
-            print_command=verbose,
             print_stdout=False,
             print_stderr=True,
         )
@@ -817,8 +813,8 @@ def check_overlapping_seqs(in_seq, in_tab, **kwargs):
     num_ASV_overlap = len(table_ASVs.intersection(FASTA_ASVs))
 
     if "taxonomy" in in_table.columns:
-        logger.info(
-            'Warning - column named "taxonomy" in abundance table - if '
+        logger.warning(
+            'column named "taxonomy" in abundance table - if '
             "this corresponds to taxonomic labels this should be removed "
             "before running this pipeline."
         )
