@@ -293,13 +293,13 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
     if print_command:
         raise DeprecationWarning("The 'print_command' parameter is deprecated and will be removed in a future version.")
 
-    logger = get_picrust_logger(__name__)
+    logger = get_picrust_logger()
     # Convert command to list if input as string.
     if type(cmd) is str:
         cmd = cmd.split()
 
     # Print command out if option set.
-    logger.info("Running command: " + " ".join(cmd))
+    logger.debug("Running command: " + " ".join(cmd))
 
     stdout_log = ""
     stderr_log = ""
@@ -358,14 +358,14 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
 
         # Log peak memory usage if captured
         if peak_memory > 0:
-            logger.info(f"Peak RAM usage: {format_memory_size(peak_memory)}")
+            logger.debug(f"Peak RAM usage: {format_memory_size(peak_memory)}")
 
         # Print stdout and stderr if specified.
         if print_stdout:
-            logger.info(stdout_log)
+            logger.debug(stdout_log)
 
         if print_stderr:
-            logger.info(stderr_log)
+            logger.debug(stderr_log)
 
     return return_value
 

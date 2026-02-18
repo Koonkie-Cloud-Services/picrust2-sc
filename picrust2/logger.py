@@ -90,6 +90,7 @@ def get_picrust_logger(name: str = "picrust2", **kwargs) -> logging.Logger:
     else:
         logger = setup_logging(
             log_file=kwargs.get("log_file", None),
+            log_file_level=kwargs.get("log_file_level", logging.DEBUG),
             level=kwargs.get("level", None),
             verbose=kwargs.get("verbose", False),
             debug=kwargs.get("debug", False),

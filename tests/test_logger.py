@@ -105,12 +105,10 @@ class TestGetPicrustLogger(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.log_file = os.path.join(self.temp_dir.name, "test.log")
+
+        # Create a logger with a file handler for testing using default parameters
         self.picrust_logger = setup_logging(
-            log_file=self.log_file,
-            log_file_level=logging.INFO,
-            level=logging.DEBUG,
-            verbose=False,
-            debug=False,
+            log_file=self.log_file
         )
 
     def tearDown(self):
@@ -121,14 +119,31 @@ class TestGetPicrustLogger(unittest.TestCase):
 
     def test_get_picrust_logger_returns_logger(self):
         """Test get_picrust_logger returns a logger instance."""
-        logger = get_picrust_logger("test_module")
+        log_file_path = os.path.join(self.temp_dir.name, "test_module.log")
+        logger = get_picrust_logger(
+            "test_module",
+            level=logging.WARNING,
+            log_file_level=logging.DEBUG,
+            log_file=log_file_path,
+        )
         self.assertIsInstance(logger, logging.Logger)
+        self.assertEqual(logger.name, "test_module")
+        self.assertEqual(logger.level, logging.WARNING, "Expected logger to have WARNING level")
 
-    def test_get_picrust_logger_with_debug_level(self):
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                self.assertEqual(handler.baseFilename, log_file_path)
+                self.assertEqual(handler.level, logging.DEBUG, "Expected file handler to have DEBUG level")
+            elif isinstance(handler, logging.StreamHandler):
+                self.assertEqual(handler.level, logging.INFO, "Expected stream handler to have INFO level")
+            else:
+                self.fail("Unexpected handler type found in logger handlers")
+
+    def test_get_picrust_logger_with_verbose_level(self):
         """Test get_picrust_logger respects custom level."""
-        logger = get_picrust_logger("test_module_debug", level=logging.DEBUG)
-        self.assertEqual(logger.level, logging.DEBUG)
-        self.assertEqual(logger.name, "test_module_debug")
+        logger = get_picrust_logger("test_module_info", verbose=True)
+        self.assertEqual(logger.level, logging.INFO, "Expected logger to have INFO level when verbose=True")
+        self.assertEqual(logger.name, "test_module_info")
         self.assertEqual(
             1, len(logger.handlers), "Expected one stream handler for the logger"
         )
@@ -137,13 +152,14 @@ class TestGetPicrustLogger(unittest.TestCase):
     def test_get_picrust_logger(self):
         logger = get_picrust_logger()
         self.assertIsInstance(logger, logging.Logger)
-        self.assertEqual(logger.level, logging.DEBUG)
+        self.assertEqual(logger.level, logging.WARNING, "Expected logger to have WARNING level")
         self.assertEqual(logger.name, "picrust2")
 
         # Check that the file handler is correct
         for handler in logger.handlers:
             if isinstance(handler, logging.FileHandler):
                 self.assertEqual(handler.baseFilename, self.log_file)
+                self.assertEqual(handler.level, logging.DEBUG, "Expected file handler to have DEBUG level")
                 break
 
 

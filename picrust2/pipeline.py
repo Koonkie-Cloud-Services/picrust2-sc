@@ -67,7 +67,7 @@ def validate_full_pipeline_inputs(**kwargs) -> None:
     """Validate inputs for full_pipeline_split function. This is a separate
     function to make it easier to test the input validation logic."""
 
-    logger = kwargs.get("logger", get_picrust_logger(__name__))
+    logger = kwargs.get("logger", get_picrust_logger())
 
     # Throw warning if --per_sequence_contrib set but --stratified unset.
     if kwargs["per_sequence_contrib"] and not kwargs["stratified"]:
@@ -211,6 +211,7 @@ def full_pipeline_split(
     skip_norm: bool = False,
     remove_intermediate: bool = False,
     verbose: bool = False,
+    debug: bool = False,
 ):
     """Function that contains wrapper commands for full PICRUSt2 pipeline.
     This is the version that incorporates separate placement steps for two
@@ -220,7 +221,7 @@ def full_pipeline_split(
 
     # Make sure the logger has been setup
     logger = get_picrust_logger(
-        verbose=verbose, log_file=get_log_file_path(output_folder)
+        verbose=verbose, debug=debug, log_file=get_log_file_path(output_folder)
     )
 
     if ref_dir1 == default_ref_dir_bac:
