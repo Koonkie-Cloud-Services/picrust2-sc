@@ -74,7 +74,7 @@ class PicrustLogger:
         return self.logger
 
 
-def get_picrust_logger(name: str, **kwargs) -> logging.Logger:
+def get_picrust_logger(name: str = "picrust2", **kwargs) -> logging.Logger:
     """Get a configured PICRUSt2 logger instance.
 
     Args:
@@ -86,17 +86,19 @@ def get_picrust_logger(name: str, **kwargs) -> logging.Logger:
     """
     if logging.getLogger(name).handlers:
         logger = logging.getLogger(name)
-        logger.debug("Using existing logger instance for %s", name)
+        logger.debug("Using existing logger instance for '%s'", name)
     else:
         logger = setup_logging(
             log_file=kwargs.get("log_file", None),
             level=kwargs.get("level", None),
             verbose=kwargs.get("verbose", False),
             debug=kwargs.get("debug", False),
+            name=name,
         )
-        logger.debug("Creating new logger instance for %s", name)
+        logger.debug("Created new logger instance for '%s'", name)
 
     return logger
+
 
 def setup_logging(
     verbose: bool = False, debug: bool = False, log_file: Optional[str] = None, **kwargs
@@ -121,14 +123,14 @@ def setup_logging(
     else:
         level = logging.WARNING
 
-    log_file_level = kwargs.get("log_file_level", logging.DEBUG)
-
     # Configure root PICRUSt2 logger
-    root_logger = PicrustLogger("picrust2", level)
+    root_logger = PicrustLogger(name=kwargs.get("name", "picrust2"), level=level)
 
     # Add file handler if specified
     if log_file:
-        root_logger.add_file_handler(log_file, level=log_file_level)
+        root_logger.add_file_handler(
+            log_file, level=kwargs.get("log_file_level", logging.DEBUG)
+        )
 
     return root_logger.get_logger()
 

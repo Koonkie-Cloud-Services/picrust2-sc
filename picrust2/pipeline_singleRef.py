@@ -152,7 +152,7 @@ def full_pipeline(study_fasta,
     if verbose:
         place_seqs_cmd.append("--verbose")
 
-    system_call_check(place_seqs_cmd, print_command=verbose,
+    system_call_check(place_seqs_cmd,
                       print_stdout=verbose, print_stderr=True)
 
     if verbose:
@@ -202,7 +202,7 @@ def full_pipeline(study_fasta,
         if verbose:
             hsp_cmd.append("--verbose")
 
-        system_call_check(hsp_cmd, print_command=verbose,
+        system_call_check(hsp_cmd,
                           print_stdout=verbose, print_stderr=True)
 
     # Now run metagenome pipeline commands.
@@ -256,7 +256,7 @@ def full_pipeline(study_fasta,
                 func_output[func][1] = path.join(func_output_dir,
                                                  "pred_metagenome_contrib.tsv.gz")
 
-        system_call_check(metagenome_pipeline_cmd, print_command=verbose,
+        system_call_check(metagenome_pipeline_cmd,
                           print_stdout=verbose, print_stderr=True)
 
     # Now infer pathway abundances and coverages unless --no_pathways set.
@@ -317,7 +317,7 @@ def full_pipeline(study_fasta,
         if verbose:
             pathway_pipeline_cmd.append("--verbose")
 
-        system_call_check(pathway_pipeline_cmd, print_command=verbose,
+        system_call_check(pathway_pipeline_cmd,
                           print_stdout=False, print_stderr=True)
 
         if verbose:

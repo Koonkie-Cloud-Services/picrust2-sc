@@ -26,7 +26,7 @@ from picrust2.logger import get_picrust_logger, log_and_raise, get_log_file_path
 
 
 def get_function_names_and_tables(**kwargs):
-    logger = kwargs.get("logger", get_picrust_logger(__name__))
+    logger = kwargs.get("logger", get_picrust_logger())
     if not kwargs["custom_trait_tables_ref1"]:
         # Check that specified functional categories are allowed.
         funcs = kwargs["in_traits"].split(",")
@@ -220,7 +220,7 @@ def full_pipeline_split(
 
     # Make sure the logger has been setup
     logger = get_picrust_logger(
-        name=__name__, verbose=verbose, log_file=get_log_file_path(output_folder)
+        verbose=verbose, log_file=get_log_file_path(output_folder)
     )
 
     if ref_dir1 == default_ref_dir_bac:
@@ -799,11 +799,13 @@ def full_pipeline_split(
     return (func_output, pathway_outfiles)
 
 
-def check_overlapping_seqs(in_seq, in_tab, logger=get_picrust_logger(__name__)):
+def check_overlapping_seqs(in_seq, in_tab, **kwargs):
     """Check that ASV ids overlap between the input FASTA and sequence
     abundance table. Will throw an error if none overlap and will otherwise
     print number of overlapping ids to STDERR. Also throw warning if input
     ASV table contains a column called taxonomy"""
+
+    logger = kwargs.get("logger", get_picrust_logger(name="picrust2"))
 
     FASTA_ASVs = set(read_fasta(in_seq).keys())
 
@@ -837,10 +839,12 @@ def check_overlapping_seqs(in_seq, in_tab, logger=get_picrust_logger(__name__)):
     )
 
 
-def check_duplicated_seqnames(in_seq, logger=get_picrust_logger(__name__)):
+def check_duplicated_seqnames(in_seq, **kwargs):
     """Check that ASV ids are not duplicated in the input FASTA.
     Will throw an error if any of the ids are duplicated, and will otherwise
     print number of ids to STDERR."""
+
+    logger = kwargs.get("logger", get_picrust_logger(name="picrust2"))
 
     FASTA_ASVs = read_fasta_ids(in_seq)
 

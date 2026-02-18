@@ -10,10 +10,6 @@ from picrust2.util import (
 )
 from picrust2.logger import get_picrust_logger, log_and_raise
 
-# Get logger for this module
-logger = get_picrust_logger(__name__)
-
-
 def run_metagenome_pipeline(
     input_seqabun,
     function,
@@ -29,6 +25,8 @@ def run_metagenome_pipeline(
     """Main function to run full metagenome pipeline. Meant to run modular
     functions largely listed below. Will return predicted metagenomes
     straitifed and unstratified by contributing genomes (i.e. taxa)."""
+
+    logger = get_picrust_logger(name="picrust2")
 
     if not marker and not skip_norm:
         log_and_raise(
@@ -212,6 +210,8 @@ def drop_tips_by_nsti(tab, nsti_col, max_nsti):
     which just contains the NSTI values for ASVs that passed the cut-off. Will
     report how many ASVs were removed and will throw error if all ASVs are."""
 
+    logger = get_picrust_logger(name="picrust2")
+
     orig_num_rows = tab.shape[0]
 
     tab = tab[tab[nsti_col] <= max_nsti]
@@ -307,6 +307,7 @@ def id_rare_seqs(in_counts, min_reads, min_samples):
     """Determine which rows of a sequence countfile are below either the
     cut-offs of min read counts or min samples present."""
 
+    logger = get_picrust_logger(name="picrust2")
     # Check if "RARE" is the name of a sequence in this table.
     if "RARE" in in_counts.index:
         log_and_raise(
@@ -332,6 +333,7 @@ def metagenome_contributions(func_abun: pd.DataFrame, sample_abun: pd.DataFrame,
     non-empty list is input for the rare_seqs option. The skip_abun option
     can be set when the abundances columns are not needed."""
 
+    logger = get_picrust_logger(name="picrust2")
     # Make copy of sample abundance that is in terms of relative abundances.
     sample_relabun = sample_abun.div(sample_abun.sum(axis=0), axis=1) * 100
 

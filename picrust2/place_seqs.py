@@ -45,7 +45,7 @@ def place_seqs_pipeline(study_fasta,
     system_call_check("hmmalign --trim --dna --mapali " +
                       ref_msa + " --informat FASTA -o " +
                       out_stockholm + " " + hmm + " " + study_fasta,
-                      print_command=verbose, print_stdout=verbose,
+                      print_stdout=verbose,
                       print_stderr=verbose)
 
     hmmalign_out = read_stockholm(out_stockholm, clean_char=True)
@@ -136,8 +136,7 @@ def run_papara(tree: str, ref_msa: dict, study_fasta: str, out_dir: str,
     # Make call to papara to place sequences (outputs phylip format).
     system_call_check("papara -t " + tree + " -s ref_seqs.phylip " +
                       "-q " + study_fasta + " -j " + str(threads) +
-                      " -n out", print_command=print_cmds,
-                      print_stdout=print_cmds, print_stderr=print_cmds)
+                      " -n out", print_stdout=print_cmds, print_stderr=print_cmds)
 
     # Change back to original working directory.
     chdir(orig_wd)
@@ -185,7 +184,7 @@ def run_epa_ng(tree: str, ref_msa_fastafile: str, study_msa_fastafile: str,
                       "--filter-acc-lwr", "0.99",
                       "--filter-max", "100"]
 
-    system_call_check(epa_ng_command, print_command=print_cmds,
+    system_call_check(epa_ng_command,
                       print_stdout=print_cmds, print_stderr=print_cmds)
 
     # Parse jplace file so that output is reprodicible.
@@ -203,7 +202,7 @@ def gappa_jplace_to_newick(jplace_file: str, outfile: str, print_cmds=False):
     # Run gappa to convert jplace to newick.
     system_call_check("gappa examine graft --jplace-path " + jplace_file +
                       " --fully-resolve --out-dir " + gappa_out_dir,
-                      print_command=print_cmds, print_stdout=print_cmds,
+                      print_stdout=print_cmds,
                       print_stderr=print_cmds)
 
     # Expected name of output newick file.
@@ -211,8 +210,7 @@ def gappa_jplace_to_newick(jplace_file: str, outfile: str, print_cmds=False):
     newick_file = jplace_file.replace(jplace_ext, ".newick")
 
     # Rename newick file to be specified outfile.
-    system_call_check("mv " + newick_file + " " + outfile,
-                      print_command=print_cmds)
+    system_call_check("mv " + newick_file + " " + outfile)
 
 
 def identify_ref_files(in_dir, placement_method):
@@ -455,7 +453,7 @@ def run_sepp(tree: str, ref_msa_fastafile: str, study_msa_fastafile: str,
         sys.exit("\nStopped running due to at least one input FASTA being "
                  "gzipped (which SEPP does not allow).\n")
 
-    system_call_check(sepp_command, print_command=print_cmds,
+    system_call_check(sepp_command,
                       print_stdout=print_cmds, print_stderr=print_cmds)
 
 

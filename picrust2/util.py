@@ -284,6 +284,15 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
     """Run system command and throw and error if return is not 0. Input command
     can be a list containing the command or a string. Monitors and logs peak RAM usage."""
 
+    # TODO: replace with kbl.utils.execute which 
+    # has better error handling and logging.
+    # This function should be removed in favor
+    # of that one in the future, but for now we 
+    # will keep it here to avoid making too many changes at once.
+
+    if print_command:
+        raise DeprecationWarning("The 'print_command' parameter is deprecated and will be removed in a future version.")
+
     logger = get_picrust_logger(__name__)
     # Convert command to list if input as string.
     if type(cmd) is str:

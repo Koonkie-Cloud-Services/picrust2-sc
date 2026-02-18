@@ -128,7 +128,7 @@ def castor_hsp_wrapper(tree_path, trait_tab, hsp_method, edge_exponent=0.5,
                             str(ran_seed)])
 
         # Run castor_hsp.R
-        system_call_check(hsp_cmd, print_command=verbose,
+        system_call_check(hsp_cmd,
                           print_stdout=verbose, print_stderr=verbose)
 
         # Load the output into Table objects
@@ -176,7 +176,6 @@ def castor_nsti(tree_path,
                                     tree_path,
                                     known_tips_out,
                                     nsti_tmp_out]),
-                          print_command=verbose,
                           print_stdout=verbose,
                           print_stderr=verbose)
 

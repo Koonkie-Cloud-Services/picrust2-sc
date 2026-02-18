@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PICRUSt2"
-version = "2.6.7"
+version = "2.6.8"
 description = "PICRUSt: Phylogenetic Investigation of Communities by Reconstruction of Unobserved States"
 readme = "README.md"
 license = {text = "GPL"}
