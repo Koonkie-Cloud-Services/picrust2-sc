@@ -281,6 +281,32 @@ def format_memory_size(bytes_value: int) -> str:
     return f"{bytes_value:.1f} PB"
 
 
+def get_process_memory(ps_process: psutil.Process) -> int:
+    """Get total memory usage including all child processes.
+    
+    Args:
+        ps_process: psutil.Process object for the parent process
+        
+    Returns:
+        Total memory in bytes (RSS) for parent and all children
+    """
+    try:
+        # Start with parent process memory
+        total_memory = ps_process.memory_info().rss
+        
+        # Add memory from all child processes recursively
+        for child in ps_process.children(recursive=True):
+            try:
+                total_memory += child.memory_info().rss
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                # Child may have terminated
+                pass
+        
+        return total_memory
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return 0
+
+
 def system_call_check(cmd: Union[str, List[str]], **kwargs) -> int:
     """Run system command and throw and error if return is not 0. Input command
     can be a list containing the command or a string. Monitors and logs peak RAM usage."""
@@ -318,11 +344,10 @@ def system_call_check(cmd: Union[str, List[str]], **kwargs) -> int:
             # Try to monitor memory usage while process is running
             try:
                 ps_process = psutil.Process(proc.pid)
-                # Poll memory usage while process runs
+                # Poll memory usage while process runs (including child processes)
                 while proc.poll() is None:
                     try:
-                        memory_info = ps_process.memory_info()
-                        current_memory = memory_info.rss
+                        current_memory = get_process_memory(ps_process)
                         if current_memory > peak_memory:
                             peak_memory = current_memory
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
