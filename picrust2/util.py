@@ -6,6 +6,7 @@ from collections import defaultdict
 from subprocess import call, Popen, PIPE
 import argparse
 import psutil
+import time
 import shutil as _shutil
 import weakref as _weakref
 import warnings as _warnings
@@ -18,7 +19,7 @@ import sys
 from typing import Dict, List, Optional, Union, Tuple
 from ete4 import Tree
 
-from picrust2.logger import get_picrust_logger
+from picrust2.logger import get_picrust_logger, log_and_raise
 
 def read_fasta(filename: str, cut_header: bool = False) -> Dict[str, str]:
     """Read in FASTA file (gzipped or not) and return dictionary with each
@@ -280,7 +281,7 @@ def format_memory_size(bytes_value: int) -> str:
     return f"{bytes_value:.1f} PB"
 
 
-def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, print_stdout: bool = False, print_stderr: bool = False) -> int:
+def system_call_check(cmd: Union[str, List[str]], **kwargs) -> int:
     """Run system command and throw and error if return is not 0. Input command
     can be a list containing the command or a string. Monitors and logs peak RAM usage."""
 
@@ -290,10 +291,7 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
     # of that one in the future, but for now we 
     # will keep it here to avoid making too many changes at once.
 
-    if print_command:
-        raise DeprecationWarning("The 'print_command' parameter is deprecated and will be removed in a future version.")
-
-    logger = get_picrust_logger()
+    logger = kwargs.get("logger", get_picrust_logger())
     # Convert command to list if input as string.
     if type(cmd) is str:
         cmd = cmd.split()
@@ -317,18 +315,23 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
             # Use Popen to get process handle for memory monitoring
             proc = Popen(cmd, stdout=stdout_fh, stderr=stderr_fh)
             
-            # Try to monitor memory usage
+            # Try to monitor memory usage while process is running
             try:
                 ps_process = psutil.Process(proc.pid)
-                # Wait for process to complete
-                return_value = proc.wait()
-                # Get peak memory usage (RSS = Resident Set Size)
-                try:
-                    memory_info = ps_process.memory_info()
-                    peak_memory = memory_info.rss
-                except psutil.NoSuchProcess:
-                    # Process terminated too quickly to measure
-                    pass
+                # Poll memory usage while process runs
+                while proc.poll() is None:
+                    try:
+                        memory_info = ps_process.memory_info()
+                        current_memory = memory_info.rss
+                        if current_memory > peak_memory:
+                            peak_memory = current_memory
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        # Process may have just terminated
+                        break
+                    # Sleep briefly to avoid busy-waiting
+                    time.sleep(0.01)
+                # Get final return value
+                return_value = proc.returncode
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 # Fallback if psutil fails
                 return_value = proc.wait()
@@ -361,11 +364,11 @@ def system_call_check(cmd: Union[str, List[str]], print_command: bool = False, p
             logger.debug(f"Peak RAM usage: {format_memory_size(peak_memory)}")
 
         # Print stdout and stderr if specified.
-        if print_stdout:
-            logger.debug(stdout_log)
+        if kwargs.get("print_stdout", False) and stdout_log:
+            logger.debug(f"Command stdout:\n{stdout_log}")
 
-        if print_stderr:
-            logger.debug(stderr_log)
+        if kwargs.get("print_stderr", False) and stderr_log:
+            logger.debug(f"Command stderr:\n{stderr_log}")
 
     return return_value
 
@@ -435,24 +438,56 @@ def generate_temp_filename(temp_dir: Optional[str] = None, prefix: str = "", suf
     return join(temp_dir, prefix + next(tempfile._get_candidate_names()) + suffix)
 
 
-def read_seqabun(infile: str) -> pd.DataFrame:
-    """Will read in sequence abundance table in either TSV, BIOM, or mothur
-    shared format."""
+def read_seqabun(infile: str, **kwargs) -> pd.DataFrame:
+    """Read a sequence abundance table from a file.
+    Supports multiple input formats: BIOM files, mothur shared files, and 
+    tab-separated values (TSV) files. Performs validation checks to ensure 
+    the input file is properly formatted.
+    Args:
+        infile (str): Path to the sequence abundance table file. Can be a BIOM 
+            file (.biom), mothur shared file (.tsv/.txt), or standard TSV file.
+            TSV files can be gzip-compressed (.gz extension).
+        **kwargs: Optional keyword arguments:
+            logger: A logger instance for debug output. If not provided, uses 
+                get_picrust_logger().
+    Returns:
+        pd.DataFrame: A pandas DataFrame containing the sequence abundance data.
+            - For BIOM files: Converted directly to DataFrame format.
+            - For mothur files: DataFrame is transposed with Group as index.
+            - For TSV files: First column is set as the index.
+            - All indices are converted to strings.
+    Raises:
+        SystemExit: If any of the following issues are detected:
+            - Sequence abundance table contains "Unnamed" columns after reading.
+            - Tab-separated values file has inconsistent number of fields between lines.
+            - Tab-separated values file contains trailing whitespace.
+    Notes:
+        - BIOM format is expected to be the most common input format.
+        - For TSV files, performs preliminary sanity checks by reading the file 
+          twice (once for validation, once for parsing).
+        - Handles both plain text and gzip-compressed TSV files.
+    """
+    
+    logger = kwargs.get("logger", get_picrust_logger())
+    logger.debug(f"Reading sequence abundance table from {infile}")
 
     def kill_if_unnamed_col_in_seqabun(df):
         if df.columns.str.contains("^Unnamed:").any():
-            sys.exit(
+            log_and_raise(
+                logger,
                 'Stopping - sequence abundance table contains "Unnamed" column after reading it in with the pandas Python package. This indicates that it is malformed. '
-                "Please make sure there are no missing column names and/or trailing whitespace."
+                "Please make sure there are no missing column names and/or trailing whitespace.",
             )
 
     # First check extension of input file. If extension is "biom" then read in
     # as BIOM table and return. This is expected to be the most common input.
     in_name, in_ext = splitext(infile)
     if in_ext == ".biom":
+        logger.debug("Input file has .biom extension, attempting to read as BIOM format.")
         input_seqabun = biom.load_table(infile).to_dataframe(dense=True)
         input_seqabun.index.astype("str", copy=False)
         kill_if_unnamed_col_in_seqabun(input_seqabun)
+        logger.debug("Successfully read BIOM file to DataFrame with shape %s.", input_seqabun.shape)
         return input_seqabun
 
     # Next check if input file is a mothur shared file or not by read in first
@@ -482,6 +517,7 @@ def read_seqabun(infile: str) -> pd.DataFrame:
         input_seqabun = input_seqabun.transpose()
         input_seqabun.index.astype("str", copy=False)
         kill_if_unnamed_col_in_seqabun(input_seqabun)
+        logger.debug("Successfully read mothur file to DataFrame with shape %s.", input_seqabun.shape)
         return input_seqabun
     else:
 
@@ -497,7 +533,8 @@ def read_seqabun(infile: str) -> pd.DataFrame:
                         first_line_flag = False
 
                     elif len(line.split("\t")) != first_num_field:
-                        sys.exit(
+                        log_and_raise(
+                            logger,
                             "Stopping - this line of the sequence abundance table has a differing number of fields from the first line after delimitting by tabs. This will need to be fixed.\n\n"
                             + line
                             + "\n\nFor reference, this is what the first line looks like:\n"
@@ -505,7 +542,8 @@ def read_seqabun(infile: str) -> pd.DataFrame:
                         )
 
                     elif line[-2:].isspace():
-                        sys.exit(
+                        log_and_raise(
+                            logger,
                             "Stopping - this line of the sequence abundance table ends in trailing whitespace. This will need to be fixed.\n\n"
                             + line
                         )
@@ -518,7 +556,8 @@ def read_seqabun(infile: str) -> pd.DataFrame:
                         first_line_flag = False
 
                     elif len(line.split("\t")) != first_num_field:
-                        sys.exit(
+                        log_and_raise(
+                            logger,
                             "Stopping - this line of the sequence abundance table has a differing number of fields from the first line after delimitting by tabs. This will need to be fixed.\n\n"
                             + line
                             + "\n\nFor reference, this is what the first line looks like:\n"
@@ -526,7 +565,8 @@ def read_seqabun(infile: str) -> pd.DataFrame:
                         )
 
                     elif line[-2:].isspace():
-                        sys.exit(
+                        log_and_raise(
+                            logger,
                             "Stopping - this line of the sequence abundance table ends in trailing whitespace. This will need to be fixed.\n\n"
                             + line
                         )
@@ -541,6 +581,7 @@ def read_seqabun(infile: str) -> pd.DataFrame:
         input_seqabun.set_index(first_col, drop=True, inplace=True)
         kill_if_unnamed_col_in_seqabun(input_seqabun)
 
+        logger.debug("Successfully read TSV file to DataFrame with shape %s.", input_seqabun.shape)
         return input_seqabun
 
 

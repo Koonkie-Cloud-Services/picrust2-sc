@@ -8,7 +8,7 @@ from picrust2.default import (
     default_tables_bac,
     default_tables_arc,
     default_pathway_map,
-    default_regroup_map
+    default_regroup_map,
 )
 from picrust2.place_seqs import identify_ref_files
 from picrust2.util import (
@@ -165,7 +165,7 @@ def validate_full_pipeline_inputs(**kwargs) -> None:
     check_overlapping_seqs(kwargs["study_fasta"], kwargs["input_table"], logger=logger)
 
     # Check that there are no duplicated sequence names in the FASTA.
-    check_duplicated_seqnames(kwargs["study_fasta"])
+    check_duplicated_seqnames(kwargs["study_fasta"], logger=logger)
 
     # Check for existing outputs from previous run
     if check_existing_output(kwargs["output_folder"]):
@@ -410,9 +410,7 @@ def full_pipeline_split(
         if verbose:
             hsp_cmd.append("--verbose")
 
-        system_call_check(
-            hsp_cmd, print_stdout=verbose, print_stderr=True
-        )
+        system_call_check(hsp_cmd, print_stdout=verbose, print_stderr=True)
 
     logger.info(
         "Finished getting marker and NSTI predictions for both domains: "
@@ -550,9 +548,7 @@ def full_pipeline_split(
             if verbose:
                 hsp_cmd.append("--verbose")
 
-            system_call_check(
-                hsp_cmd, print_stdout=verbose, print_stderr=True
-            )
+            system_call_check(hsp_cmd, print_stdout=verbose, print_stderr=True)
 
     logger.info("Finished getting functional predictions for all traits.")
 
@@ -736,7 +732,9 @@ def full_pipeline_split(
                 norm_sequence_abun = input_table
             else:
                 norm_sequence_abun = path.join(
-                    output_folder, rxn_func_key + "_metagenome_out", "seqtab_norm.tsv.gz"
+                    output_folder,
+                    rxn_func_key + "_metagenome_out",
+                    "seqtab_norm.tsv.gz",
                 )
 
             pathway_pipeline_cmd += ["--per_sequence_abun", norm_sequence_abun]

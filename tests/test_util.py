@@ -1,38 +1,43 @@
 #!/usr/bin/env python
 
+import os
 import unittest
 from os import path
 import pandas as pd
 import hashlib
 import gzip
-from picrust2.util import (write_fasta,
-                           read_fasta,
-                           write_phylip,
-                           read_phylip,
-                           three_df_index_overlap_sort,
-                           add_descrip_col,
-                           convert_humann2_to_picrust2,
-                           convert_picrust2_to_humann2,
-                           convert_picrust2_to_humann2_merged,
-                           contrib_to_legacy,
-                           read_seqabun,
-                           TemporaryDirectory,
-                           format_memory_size,
-                           system_call_check)
+from picrust2.util import (
+    write_fasta,
+    read_fasta,
+    write_phylip,
+    read_phylip,
+    three_df_index_overlap_sort,
+    add_descrip_col,
+    convert_humann2_to_picrust2,
+    convert_picrust2_to_humann2,
+    convert_picrust2_to_humann2_merged,
+    contrib_to_legacy,
+    read_seqabun,
+    TemporaryDirectory,
+    format_memory_size,
+    system_call_check,
+)
 
 from picrust2.default_oldIMG import default_map
 
-metagenome_pipeline_test_dir_path = path.join(path.dirname(path.abspath(__file__)),
-                                              "test_data",
-                                              "metagenome_pipeline")
-seqtab_biom = path.join(metagenome_pipeline_test_dir_path,
-                        "test_input_sequence_abun.biom")
-seqtab_msf = path.join(metagenome_pipeline_test_dir_path,
-                       "test_input_sequence_abun.msf")
+metagenome_pipeline_test_dir_path = path.join(
+    path.dirname(path.abspath(__file__)), "test_data", "metagenome_pipeline"
+)
+seqtab_biom = path.join(
+    metagenome_pipeline_test_dir_path, "test_input_sequence_abun.biom"
+)
+seqtab_msf = path.join(
+    metagenome_pipeline_test_dir_path, "test_input_sequence_abun.msf"
+)
 
-descrip_test_dir_path = path.join(path.dirname(path.abspath(__file__)),
-                                  "test_data",
-                                  "add_descriptions")
+descrip_test_dir_path = path.join(
+    path.dirname(path.abspath(__file__)), "test_data", "add_descriptions"
+)
 
 descrip_test_dir_out_path = path.join(descrip_test_dir_path, "output")
 
@@ -61,75 +66,95 @@ tigrfam_unstrat_in = path.join(descrip_test_dir_path, "tigrfam_unstrat_test.txt.
 tigrfam_unstrat_exp = path.join(descrip_test_dir_out_path, "tigrfam_unstrat_exp.txt.gz")
 
 # Set paths to input and output files for convert_table.py tests.
-convert_test_dir_path = path.join(path.dirname(path.abspath(__file__)), "test_data",
-                                  "convert_table")
+convert_test_dir_path = path.join(
+    path.dirname(path.abspath(__file__)), "test_data", "convert_table"
+)
 
 convert_test_dir_out_path = path.join(convert_test_dir_path, "expected_out")
 
 humann2_strat_in = path.join(convert_test_dir_path, "humann2_strat_example.tsv.gz")
-humann2_strat_exp = path.join(convert_test_dir_out_path, "humann2_strat_example_picrust2.tsv.gz")
+humann2_strat_exp = path.join(
+    convert_test_dir_out_path, "humann2_strat_example_picrust2.tsv.gz"
+)
 
 humann2_unstrat_in = path.join(convert_test_dir_path, "humann2_unstrat_example.tsv.gz")
-humann2_unstrat_exp = path.join(convert_test_dir_out_path, "humann2_unstrat_example_picrust2.tsv.gz")
+humann2_unstrat_exp = path.join(
+    convert_test_dir_out_path, "humann2_unstrat_example_picrust2.tsv.gz"
+)
 
-humann2_strat_in_split1 = path.join(convert_test_dir_path, "humann2_path_test_A1.tsv.gz")
-humann2_strat_in_split2 = path.join(convert_test_dir_path, "humann2_path_test_D2.tsv.gz")
-humann2_strat_in_split3 = path.join(convert_test_dir_path, "humann2_path_test_PD3.tsv.gz")
-humann2_strat_split_exp = path.join(convert_test_dir_out_path, "humann2_path_test_picrust2.tsv.gz")
+humann2_strat_in_split1 = path.join(
+    convert_test_dir_path, "humann2_path_test_A1.tsv.gz"
+)
+humann2_strat_in_split2 = path.join(
+    convert_test_dir_path, "humann2_path_test_D2.tsv.gz"
+)
+humann2_strat_in_split3 = path.join(
+    convert_test_dir_path, "humann2_path_test_PD3.tsv.gz"
+)
+humann2_strat_split_exp = path.join(
+    convert_test_dir_out_path, "humann2_path_test_picrust2.tsv.gz"
+)
 
 picrust2_strat_in = path.join(convert_test_dir_path, "picrust2_strat_tmp.tsv.gz")
 
-picrust2_strat_exp1 = path.join(convert_test_dir_out_path, "picrust2_strat_to_humann2_split", "s1_split.tsv.gz")
-picrust2_strat_exp2 = path.join(convert_test_dir_out_path, "picrust2_strat_to_humann2_split", "s2_split.tsv.gz")
-picrust2_strat_exp3 = path.join(convert_test_dir_out_path, "picrust2_strat_to_humann2_split", "s3_split.tsv.gz")
+picrust2_strat_exp1 = path.join(
+    convert_test_dir_out_path, "picrust2_strat_to_humann2_split", "s1_split.tsv.gz"
+)
+picrust2_strat_exp2 = path.join(
+    convert_test_dir_out_path, "picrust2_strat_to_humann2_split", "s2_split.tsv.gz"
+)
+picrust2_strat_exp3 = path.join(
+    convert_test_dir_out_path, "picrust2_strat_to_humann2_split", "s3_split.tsv.gz"
+)
 
 picrust2_unstrat_in1 = path.join(convert_test_dir_path, "picrust2_unstrat_tmp1.tsv.gz")
 picrust2_unstrat_in2 = path.join(convert_test_dir_path, "picrust2_unstrat_tmp2.tsv.gz")
-picrust2_unstrat_exp = path.join(convert_test_dir_out_path,
-                                 "picrust2_unstrat_tmp1_tmp2_humann2-format.tsv.gz")
+picrust2_unstrat_exp = path.join(
+    convert_test_dir_out_path, "picrust2_unstrat_tmp1_tmp2_humann2-format.tsv.gz"
+)
 
-metagenome_contrib_in = path.join(convert_test_dir_path,
-                                  "metagenome_contrib_test.tsv.gz")
+metagenome_contrib_in = path.join(
+    convert_test_dir_path, "metagenome_contrib_test.tsv.gz"
+)
 
-metagenome_contrib_legacy = path.join(convert_test_dir_path,
-                                      "metagenome_contrib_legacy.tsv.gz")
+metagenome_contrib_legacy = path.join(
+    convert_test_dir_path, "metagenome_contrib_legacy.tsv.gz"
+)
 
 # Inititalize 3 test pandas dataframes.
-test1 = pd.DataFrame.from_dict({"a": [1, 2, 3],
-                                "b": [10, 6, 5],
-                                "c": [1, 3, 4]},
-                               orient='index')
+test1 = pd.DataFrame.from_dict(
+    {"a": [1, 2, 3], "b": [10, 6, 5], "c": [1, 3, 4]}, orient="index"
+)
 
-test2 = pd.DataFrame.from_dict({"b": [10, 7, 0],
-                                "c": [0, 0, 0],
-                                "d": [5, 4, 3]},
-                               orient='index')
+test2 = pd.DataFrame.from_dict(
+    {"b": [10, 7, 0], "c": [0, 0, 0], "d": [5, 4, 3]}, orient="index"
+)
 
-test3 = pd.DataFrame.from_dict({"e": [0, 5, 3],
-                                "c": [9, 0, 7],
-                                "b": [1, 0, 2]},
-                               orient='index')
+test3 = pd.DataFrame.from_dict(
+    {"e": [0, 5, 3], "c": [9, 0, 7], "b": [1, 0, 2]}, orient="index"
+)
 
 
 class util_test(unittest.TestCase):
 
     def test_seqabun_reading(self):
-        '''Test that mothur shared format and BIOM tables read in
-        identically.'''
+        """Test that mothur shared format and BIOM tables read in
+        identically."""
 
         seqtab_biom_in = read_seqabun(seqtab_biom)
 
         seqtab_msf_in = read_seqabun(seqtab_msf)
 
-        pd.testing.assert_frame_equal(seqtab_biom_in, seqtab_msf_in,
-                                      check_dtype=False)
+        pd.testing.assert_frame_equal(seqtab_biom_in, seqtab_msf_in, check_dtype=False)
 
     def test_read_write_fasta(self):
-        '''Basic test that FASTA files are read and written correctly.'''
+        """Basic test that FASTA files are read and written correctly."""
 
-        test_seqs_dict = {"seq1": "GNATNGAC",
-                          "seq2": "GTCGTGGC",
-                          "seq3": "GNCTGAGATTAACC"}
+        test_seqs_dict = {
+            "seq1": "GNATNGAC",
+            "seq2": "GTCGTGGC",
+            "seq3": "GNCTGAGATTAACC",
+        }
 
         # Write these sequences temp file and then read them back in again.
         with TemporaryDirectory() as temp_dir:
@@ -142,11 +167,9 @@ class util_test(unittest.TestCase):
         self.assertEqual(test_seqs_dict, test_seqs_dict_in)
 
     def test_read_write_phylip(self):
-        '''Basic test that Phylip files are read and written correctly.'''
+        """Basic test that Phylip files are read and written correctly."""
 
-        test_seqs_dict = {"seq1": "GNATNGAC",
-                          "seq2": "GTCGTGGC",
-                          "seq3": "GNCTGAGA"}
+        test_seqs_dict = {"seq1": "GNATNGAC", "seq2": "GTCGTGGC", "seq3": "GNCTGAGA"}
 
         # Write these sequences temp file and then read them back in again.
         with TemporaryDirectory() as temp_dir:
@@ -159,17 +182,20 @@ class util_test(unittest.TestCase):
         self.assertEqual(test_seqs_dict, test_seqs_dict_in)
 
     def test_three_df_index_overlap_sort(self):
-        '''Test that function to subset and sort dataframes to overlapping
-        index labels is generating expected output.'''
+        """Test that function to subset and sort dataframes to overlapping
+        index labels is generating expected output."""
 
         # Get subset of overlapped index labels ordered for each dataframe.
-        test1_out, test2_out, test3_out = three_df_index_overlap_sort(test1,
-                                                                      test2,
-                                                                      test3)
+        test1_out, test2_out, test3_out = three_df_index_overlap_sort(
+            test1, test2, test3
+        )
 
         # Get expected output with different approach as well.
-        exp_out = [test1.loc[["b", "c"], :], test2.loc[["b", "c"], :],
-                   test3.loc[["b", "c"], :]]
+        exp_out = [
+            test1.loc[["b", "c"], :],
+            test2.loc[["b", "c"], :],
+            test3.loc[["b", "c"], :],
+        ]
 
         # Check that output dataframes match the expected objects.
         pd.testing.assert_frame_equal(test1_out, exp_out[0])
@@ -177,22 +203,22 @@ class util_test(unittest.TestCase):
         pd.testing.assert_frame_equal(test3_out, exp_out[2])
 
     def test_three_df_index_overlap_sort_err(self):
-        '''Test that function to subset and sort dataframes to overlapping
-        index labels will give error if index label don't overlap..'''
+        """Test that function to subset and sort dataframes to overlapping
+        index labels will give error if index label don't overlap.."""
 
         # Define df without overlapping index labels.
-        test_no_overlap = pd.DataFrame.from_dict({"e": [0, 5, 3],
-                                                  "f": [9, 0, 7],
-                                                  "g": [1, 0, 2]},
-                                                 orient='index')
+        test_no_overlap = pd.DataFrame.from_dict(
+            {"e": [0, 5, 3], "f": [9, 0, 7], "g": [1, 0, 2]}, orient="index"
+        )
 
         # Check that ValueError assertion raised.
-        self.assertRaises(SystemExit, three_df_index_overlap_sort, test1,
-                          test2, test_no_overlap)
+        self.assertRaises(
+            SystemExit, three_df_index_overlap_sort, test1, test2, test_no_overlap
+        )
 
     def test_prune_tree(self):
-        '''Test that a tree is pruned correctly to only contain tips in a
-        provided list.'''
+        """Test that a tree is pruned correctly to only contain tips in a
+        provided list."""
         from picrust2.util import prune_tree
         from ete4 import Tree
 
@@ -216,86 +242,86 @@ class util_test(unittest.TestCase):
 class add_description_tests(unittest.TestCase):
 
     def test_ec_unstrat(self):
-        '''Test that correct descriptions added to table of EC abundances.'''
+        """Test that correct descriptions added to table of EC abundances."""
 
         obs_out = add_descrip_col(ec_unstrat_in, default_map["EC"])
 
         # Read in expected out.
-        exp_out = pd.read_csv(ec_unstrat_exp, sep='\t')
+        exp_out = pd.read_csv(ec_unstrat_exp, sep="\t")
 
         pd.testing.assert_frame_equal(obs_out, exp_out, check_like=True)
 
     def test_ec_strat(self):
-        '''Test that correct descriptions added to table of stratified EC
-        abundances.'''
+        """Test that correct descriptions added to table of stratified EC
+        abundances."""
 
         obs_out = add_descrip_col(ec_strat_in, default_map["EC"])
 
         # Read in expected out.
-        exp_out = pd.read_csv(ec_strat_exp, sep='\t')
+        exp_out = pd.read_csv(ec_strat_exp, sep="\t")
 
         pd.testing.assert_frame_equal(obs_out, exp_out, check_like=True)
 
     def test_nomatch_fail(self):
-        '''Test that a system exit is made when the ids do not overlap.'''
+        """Test that a system exit is made when the ids do not overlap."""
 
         with self.assertRaises(SystemExit):
             add_descrip_col(ec_nomatch_in, default_map["EC"])
 
     def test_metacyc_unstrat(self):
-        '''Test that correct descriptions added to table of metacyc pathway
-        abundances.'''
+        """Test that correct descriptions added to table of metacyc pathway
+        abundances."""
 
         obs_out = add_descrip_col(metacyc_unstrat_in, default_map["METACYC"])
 
         # Read in expected out.
-        exp_out = pd.read_csv(metacyc_unstrat_exp, sep='\t')
+        exp_out = pd.read_csv(metacyc_unstrat_exp, sep="\t")
 
         pd.testing.assert_frame_equal(obs_out, exp_out, check_like=True)
 
     def test_cog_unstrat(self):
-        '''Test that correct descriptions added to table of COG abundances.'''
+        """Test that correct descriptions added to table of COG abundances."""
 
         obs_out = add_descrip_col(cog_unstrat_in, default_map["COG"])
 
         # Read in expected out.
-        exp_out = pd.read_csv(cog_unstrat_exp, sep='\t')
+        exp_out = pd.read_csv(cog_unstrat_exp, sep="\t")
 
         pd.testing.assert_frame_equal(obs_out, exp_out, check_like=True)
 
     def test_ko_unstrat(self):
-        '''Test that correct descriptions added to table of KO abundances.'''
+        """Test that correct descriptions added to table of KO abundances."""
 
         obs_out = add_descrip_col(ko_unstrat_in, default_map["KO"])
 
         # Read in expected out.
-        exp_out = pd.read_csv(ko_unstrat_exp, sep='\t')
+        exp_out = pd.read_csv(ko_unstrat_exp, sep="\t")
 
         pd.testing.assert_frame_equal(obs_out, exp_out, check_like=True)
 
     def test_pfam_unstrat(self):
-        '''Test that correct descriptions added to table of PFAM abundances.'''
+        """Test that correct descriptions added to table of PFAM abundances."""
 
         obs_out = add_descrip_col(pfam_unstrat_in, default_map["PFAM"])
 
         # Read in expected out.
-        exp_out = pd.read_csv(pfam_unstrat_exp, sep='\t')
+        exp_out = pd.read_csv(pfam_unstrat_exp, sep="\t")
 
         pd.testing.assert_frame_equal(obs_out, exp_out, check_like=True)
 
     def test_tigrfam_unstrat(self):
-        '''Test that correct descriptions added to table of TIGRFAM
-        abundances.'''
+        """Test that correct descriptions added to table of TIGRFAM
+        abundances."""
 
         obs_out = add_descrip_col(tigrfam_unstrat_in, default_map["TIGRFAM"])
 
         # Read in expected out.
-        exp_out = pd.read_csv(tigrfam_unstrat_exp, sep='\t')
+        exp_out = pd.read_csv(tigrfam_unstrat_exp, sep="\t")
 
         pd.testing.assert_frame_equal(obs_out, exp_out, check_like=True)
 
     def test_default_mapping_md5sum(self):
-        '''Check that md5sum values of default mapfiles match expected values.'''
+        """Check that md5sum values of default mapfiles match expected values."""
 
         ec_hash = hashlib.md5()
         ko_hash = hashlib.md5()
@@ -304,34 +330,41 @@ class add_description_tests(unittest.TestCase):
         tigrfam_hash = hashlib.md5()
         metacyc_hash = hashlib.md5()
 
-        with gzip.open(default_map["EC"], 'rt') as ec_in:
+        with gzip.open(default_map["EC"], "rt") as ec_in:
             ec_hash.update(ec_in.read().encode())
 
-        with gzip.open(default_map["KO"], 'rt') as ko_in:
+        with gzip.open(default_map["KO"], "rt") as ko_in:
             ko_hash.update(ko_in.read().encode())
 
-        with gzip.open(default_map["COG"], 'rt') as cog_in:
+        with gzip.open(default_map["COG"], "rt") as cog_in:
             cog_hash.update(cog_in.read().encode())
 
-        with gzip.open(default_map["PFAM"], 'rt') as pfam_in:
+        with gzip.open(default_map["PFAM"], "rt") as pfam_in:
             pfam_hash.update(pfam_in.read().encode())
 
-        with gzip.open(default_map["TIGRFAM"], 'rt') as tigrfam_in:
+        with gzip.open(default_map["TIGRFAM"], "rt") as tigrfam_in:
             tigrfam_hash.update(tigrfam_in.read().encode())
 
-        with gzip.open(default_map["METACYC"], 'rt') as metacyc_in:
+        with gzip.open(default_map["METACYC"], "rt") as metacyc_in:
             metacyc_hash.update(metacyc_in.read().encode())
 
-        obs_hash = [ec_hash.hexdigest(), ko_hash.hexdigest(),
-                    cog_hash.hexdigest(), pfam_hash.hexdigest(),
-                    tigrfam_hash.hexdigest(), metacyc_hash.hexdigest()]
+        obs_hash = [
+            ec_hash.hexdigest(),
+            ko_hash.hexdigest(),
+            cog_hash.hexdigest(),
+            pfam_hash.hexdigest(),
+            tigrfam_hash.hexdigest(),
+            metacyc_hash.hexdigest(),
+        ]
 
-        exp_hash = ["61b2fcd300fd53124c4d7f4b8e97b281",
-                    "f1cc419051a23bb60d1015762d221deb",
-                    "6012eaf8b2f9e336a725cd97af8cf05d",
-                    "b24d1f3cae10efd452b964a8589963e1",
-                    "8115f710df156c46908d112bd80def4a",
-                    "240640c5e2be10855337197c5536009a"]
+        exp_hash = [
+            "61b2fcd300fd53124c4d7f4b8e97b281",
+            "f1cc419051a23bb60d1015762d221deb",
+            "6012eaf8b2f9e336a725cd97af8cf05d",
+            "b24d1f3cae10efd452b964a8589963e1",
+            "8115f710df156c46908d112bd80def4a",
+            "240640c5e2be10855337197c5536009a",
+        ]
 
         # Check that md5sum values match expected values.
         self.assertEqual(obs_hash, exp_hash)
@@ -343,9 +376,9 @@ class convert_table_tests(unittest.TestCase):
 
         with TemporaryDirectory() as temp_dir:
             outfile = path.join(temp_dir, "test_out")
-            convert_picrust2_to_humann2_merged([picrust2_unstrat_in1,
-                                                picrust2_unstrat_in2],
-                                               outfile)
+            convert_picrust2_to_humann2_merged(
+                [picrust2_unstrat_in1, picrust2_unstrat_in2], outfile
+            )
             obs_out = pd.read_csv(outfile, sep="\t", index_col=0)
 
         exp_out = pd.read_csv(picrust2_unstrat_exp, sep="\t", index_col=0)
@@ -356,11 +389,24 @@ class convert_table_tests(unittest.TestCase):
 
         with TemporaryDirectory() as temp_dir:
             outfolder = path.join(temp_dir, "outfiles")
-            convert_picrust2_to_humann2([picrust2_strat_in,
-                                         picrust2_unstrat_in1], outfolder, True)
-            obs_out1 = pd.read_csv(path.join(outfolder, "sample1_humann2-format.tsv"), sep="\t", index_col=0)
-            obs_out2 = pd.read_csv(path.join(outfolder, "sample2_humann2-format.tsv"), sep="\t", index_col=0)
-            obs_out3 = pd.read_csv(path.join(outfolder, "sample3_humann2-format.tsv"), sep="\t", index_col=0)
+            convert_picrust2_to_humann2(
+                [picrust2_strat_in, picrust2_unstrat_in1], outfolder, True
+            )
+            obs_out1 = pd.read_csv(
+                path.join(outfolder, "sample1_humann2-format.tsv"),
+                sep="\t",
+                index_col=0,
+            )
+            obs_out2 = pd.read_csv(
+                path.join(outfolder, "sample2_humann2-format.tsv"),
+                sep="\t",
+                index_col=0,
+            )
+            obs_out3 = pd.read_csv(
+                path.join(outfolder, "sample3_humann2-format.tsv"),
+                sep="\t",
+                index_col=0,
+            )
 
         exp_out1 = pd.read_csv(picrust2_strat_exp1, sep="\t", index_col=0)
         exp_out2 = pd.read_csv(picrust2_strat_exp2, sep="\t", index_col=0)
@@ -401,10 +447,15 @@ class convert_table_tests(unittest.TestCase):
         with TemporaryDirectory() as temp_dir:
 
             outfile = path.join(temp_dir, "test_out")
-            convert_humann2_to_picrust2([humann2_strat_in_split1,
-                                         humann2_strat_in_split2,
-                                         humann2_strat_in_split3],
-                                        outfile, True)
+            convert_humann2_to_picrust2(
+                [
+                    humann2_strat_in_split1,
+                    humann2_strat_in_split2,
+                    humann2_strat_in_split3,
+                ],
+                outfile,
+                True,
+            )
 
             obs_out = pd.read_csv(outfile, sep="\t", index_col=[0, 1])
 
@@ -461,6 +512,12 @@ class MemoryFormattingTestCase(unittest.TestCase):
 class SystemCallCheckTestCase(unittest.TestCase):
     """Tests for system_call_check with RAM monitoring."""
 
+    def setUp(self):
+        self.test_dir = TemporaryDirectory()
+
+    def tearDown(self):
+        self.test_dir.cleanup()
+
     def test_successful_command(self):
         """Test that a successful command returns 0 and logs RAM usage."""
         # Simple echo command should succeed
@@ -472,12 +529,36 @@ class SystemCallCheckTestCase(unittest.TestCase):
         return_value = system_call_check("echo test")
         self.assertEqual(return_value, 0)
 
+    def test_failing_command(self):
+        """Test that a failing command raises SystemExit and logs RAM usage."""
+        with self.assertRaises(SystemExit):
+            system_call_check(["ls", "/nonexistent_directory"])
+
     def test_command_with_output(self):
         """Test command with stdout output."""
         # This should not raise an error
         return_value = system_call_check(["python3", "-c", "print('hello')"])
         self.assertEqual(return_value, 0)
 
+    def test_peak_memory_logging(self):
+        """Test that peak memory usage is logged."""
+        from picrust2.logger import get_picrust_logger
+        logfile_path = os.path.join(self.test_dir.name, "test_log.log")
+        logger = get_picrust_logger(
+            name="test_logger",
+            level="DEBUG",
+            log_file=logfile_path,
+        )
+        # This command should use some memory but not too much
 
-if __name__ == '__main__':
+        return_value = system_call_check(
+            ["python3", "-c", "'a = [0] * (10**8)'"], logger=logger
+        )
+        self.assertEqual(return_value, 0)
+        with open(logfile_path, "r") as log_file:
+            log_contents = log_file.read()
+            self.assertIn("Peak RAM usage", log_contents)
+
+
+if __name__ == "__main__":
     unittest.main()

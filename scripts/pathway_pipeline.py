@@ -9,6 +9,7 @@ from os import path
 from picrust2.default_oldIMG import default_regroup_map, default_pathway_map
 default_regroup_map_old, default_pathway_map_old = default_regroup_map, default_pathway_map
 from picrust2.default import default_regroup_map, default_pathway_map
+from picrust2.logger import get_picrust_logger
 
 parser = argparse.ArgumentParser(
 
@@ -153,6 +154,8 @@ def main():
 
     args = parser.parse_args()
 
+    logger = get_picrust_logger(verbose=args.verbose)
+
     # Check that input files exist.
     check_files_exist([args.input, args.map])
 
@@ -162,12 +165,10 @@ def main():
     
     if args.database != 'SC':
       if args.database == 'oldIMG':
-          if args.verbose:
-              print('-db is set to old so the old pathway files are being used.')
+          logger.warning('-db is set to old so the old pathway files are being used.')
           args.regroup_map, args.map = default_regroup_map_old, default_pathway_map_old
       else:
-          if args.verbose:
-              print('Unknown option set for -db. Ignoring it.')
+          logger.warning('Unknown option set for -db. Ignoring it.')
 
     # If intermediate output directory set then create and output there.
     # Otherwise make a temporary directory for the intermediate files.
